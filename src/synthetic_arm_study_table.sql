@@ -43,8 +43,7 @@ ALTER TABLE AMDSyntheticEyleaArmMeta
   ADD COLUMN RVOExcl INT(11) DEFAULT NULL,
   ADD COLUMN GlaucomaSurgExcl INT(11) DEFAULT NULL,
   ADD COLUMN CornealTransplantExcl INT(11) DEFAULT NULL,
-  ADD COLUMN SubMacSurgExcl INT(11) DEFAULT NULL,
-  ADD COLUMN AMDSurgExcl INT(11) DEFAULT NULL;
+  ADD COLUMN SubMacSurgExcl INT(11) DEFAULT NULL;
 
 -- BaselineDate (date of first Eylea injection)
 UPDATE AMDSyntheticEyleaArmMeta p
@@ -206,30 +205,134 @@ SET InjectionCount = (
   i.EncounterDate <= StudyExit
 );
 
--- IndexEye
+-- IndexEye ()
 
 -- SwitchExcl (1 if AvastinStartDate OR LucentisStartDate <= StudyExit)
+UPDATE AMDSyntheticEyleaArmMeta
+SET SwitchExcl = CASE 
+                  WHEN AvastinStartDate >= BaselineDate AND AvastinStartDate < StudyExit OR
+                       LucentisStartDate >= BaselineDate AND LucentisStartDate < StudyExit
+                  THEN 1
+                  ELSE 0
+                  END;
 
--- RadioThermoExcl
+-- RadioThermoExcl (stereotactic radiotherapy OR transpupillary thermotherapy OR %phytodynamic therapy before baseline)
+UPDATE AMDSyntheticEyleaArmMeta p
+JOIN ETCSurgery s
+  ON p.PatientID = s.PatientID AND
+     p.Eye = s.EyeCode AND
+     p.SiteID = s.SiteID
+  SET p.RadioThermoExcl =
+  CASE
+  WHEN s.ProcedureDesc IN ('stereotactic radiotherapy', 
+                           'transpupillary thermotherapy',
+                           '%photodynamic therapy%') AND
+       s.EncounterDate <= p.BaselineDate
+  THEN 1
+  ELSE 0
+  END;
 
--- VerteporfinThermoExcl
+-- VerteporfinThermoExcl (PDR (as a proxy of verteporfin) within 7 days of baseline in non-study eye)
 
--- ClinicalTrialExcl
+-- ClinicalTrialExcl (Macugen, Avastin or Luncetis before baseline---irregardless of whetehr during clinical trial)
 
--- IntravitrealExcl
+-- IntravitrealExcl (intravitreal corticosteroid injection or implanttation before baseline)
+UPDATE AMDSyntheticEyleaArmMeta p
+JOIN ETCInjections i
+  ON p.PatientID = i.PatientID AND
+     p.Eye = i.EyeCode AND
+     p.SiteID = i.SiteID
+  SET p.IntravitrealExcl =
+  CASE
+  WHEN i.InjectedDrugDesc IN ('%dexamethasone%', 
+                              '%Ozurdex%',
+                              '%triamcinolone%',
+                              '%Triesence%',
+                              '%implant%') AND
+       i.EncounterDate <= p.BaselineDate
+  THEN 1
+  ELSE 0
+  END;
 
--- VitrectomyExcl
+-- VitrectomyExcl (%vitrectomy& before baseline)
+UPDATE AMDSyntheticEyleaArmMeta p
+JOIN ETCSurgery s
+  ON p.PatientID = s.PatientID AND
+     p.Eye = s.EyeCode AND
+     p.SiteID = s.SiteID
+  SET p.VitrectomyExcl =
+  CASE
+  WHEN s.ProcedureDesc LIKE '%vitrectomy%' AND
+       s.EncounterDate <= p.BaselineDate
+  THEN 1
+  ELSE 0
+  END;
 
 -- DiabeticRetinopathyExcl
 
--- RVOExcl
+-- RVOExcl (retinal vein occlusion before baseline (inclusive of central, branch, hemi-branch, & macular-branch))
+UPDATE AMDSyntheticEyleaArmMeta p
+JOIN ETCSurgeryIndications i
+  ON p.PatientID = i.PatientID AND
+     p.Eye = i.EyeCode AND
+     p.SiteID = i.SiteID
+  SET p.RVOExcl =
+  CASE
+  WHEN i.IndicationDesc LIKE '%retinal vein occlusion%' AND
+       i.EncounterDate <= p.BaselineDate
+  THEN 1
+  ELSE 0
+  END;
 
--- GlaucomaSurgExcl
+-- GlaucomaSurgExcl (trabeculectomy before baseline)
+UPDATE AMDSyntheticEyleaArmMeta p
+JOIN ETCSurgery s
+  ON p.PatientID = s.PatientID AND
+     p.Eye = s.EyeCode AND
+     p.SiteID = s.SiteID
+  SET p.GlaucomaSurgExcl =
+  CASE
+  WHEN s.ProcedureDesc LIKE '%trabeculectomy%' AND
+       s.EncounterDate <= p.BaselineDate
+  THEN 1
+  ELSE 0
+  END;
 
 -- CornealTransplantExcl
 
 -- SubMacSurgExcl
 
--- AMDSurgExcl 
-
--- Export to .csv
+-- Export to .csv (& convert to snake case)
+SELECT  
+   AgeAtBaseline AS age_at_baseline,
+   BaselineDate AS baseline_date,
+   StudyExit AS study_exit,
+   EyleaStartDate AS eylea_start_date,
+   AvastinStartDate AS avastin_start_date,
+   LucentisStartDate AS lucentis_start_date,
+   InjectionCount AS injection_count,
+   va_0,
+   va_1, 
+   va_6,
+   va_12, 
+   va_18,
+   va_24, 
+   va_30,
+   va_36,
+   va_42,
+   va_48,
+   va_54,
+   IndexEye AS index_eye,
+   SwitchExcl AS switch_excl,
+   RadioThermoExcl AS radio_thermo_excl,
+   VerteporfinThermoExcl AS verteporfin_thermo_excl,
+   ClinicalTrialExcl AS clinical_trial_excl,
+   IntravitrealExcl AS intravitreal_excl,
+   VitrectomyExcl AS vitrectomy_excl,
+   DiabeticRetinopathyExcl AS diabetic_retinopathy_excl,
+   RVOExcl AS rvo_excl,
+   GlaucomaSurgExcl AS glaucoma_excl,
+   CornealTransplantExcl AS corneal_transplant_excl,
+   SubMacSurgExcl AS sub_mac_surg_excl,
+FROM AMDSyntheticEyleaArmMeta;
+  
