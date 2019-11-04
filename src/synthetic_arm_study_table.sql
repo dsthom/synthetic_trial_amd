@@ -231,11 +231,24 @@ JOIN ETCSurgery s
   THEN 1
   ELSE 0
   END;
+  
+UPDATE AMDSyntheticEyleaArmMeta
+SET RadioThermoExcl = 0
+WHERE RadioThermoExcl IS NULL;
 
 -- VerteporfinThermoExcl (PDR (as a proxy of verteporfin) within 7 days of baseline in non-study eye)
 
--- ClinicalTrialExcl (Macugen, Avastin or Luncetis before baseline---irregardless of whetehr during clinical trial)
 
+UPDATE AMDSyntheticEyleaArmMeta
+SET VerteporfinThermoExcl = 0
+WHERE VerteporfinThermoExcl IS NULL;
+
+-- ClinicalTrialExcl (Macugen, Avastin or Luncetis before baseline---irregardless of whether during clinical trial)
+
+
+UPDATE AMDSyntheticEyleaArmMeta
+SET ClinicalTrialExcl = 0
+WHERE ClinicalTrialExcl IS NULL;
 -- IntravitrealExcl (intravitreal corticosteroid injection or implanttation before baseline)
 UPDATE AMDSyntheticEyleaArmMeta p
 JOIN ETCInjections i
@@ -253,6 +266,10 @@ JOIN ETCInjections i
   THEN 1
   ELSE 0
   END;
+  
+UPDATE AMDSyntheticEyleaArmMeta
+SET IntravitrealExcl = 0
+WHERE IntravitrealExcl IS NULL;
 
 -- VitrectomyExcl (%vitrectomy& before baseline)
 UPDATE AMDSyntheticEyleaArmMeta p
@@ -268,7 +285,30 @@ JOIN ETCSurgery s
   ELSE 0
   END;
 
--- DiabeticRetinopathyExcl
+UPDATE AMDSyntheticEyleaArmMeta
+SET VitrectomyExcl = 0
+WHERE VitrectomyExcl IS NULL;  
+  
+-- DiabeticRetinopathyExcl (presence of ≥ 1 grade-diabetic reitnopathy as per ETDRS, NSC, or International)
+UPDATE AMDSyntheticEyleaArmMeta p
+JOIN ETCDRGrading d
+  ON p.PatientID = d.PatientID AND
+     p.Eye = d.EyeCode AND
+     p.SiteID = d.SiteID
+  SET p.DiabeticRetinopathyExcl =
+  CASE
+  WHEN d.DRGradeDesc LIKE '%PDR%' OR
+       d.DRGradeDesc LIKE 'Scatter (PRP) Retinal Laser Scars Visible' OR 
+       d.DRGradeDesc IN ('R1', 'R2', 'R3', 'M1', 'P') OR
+       d.DRGradeDesc LIKE 'Proliferative DR' AND
+       d.EncounterDate <= p.BaselineDate
+  THEN 1
+  ELSE 0
+  END;
+
+UPDATE AMDSyntheticEyleaArmMeta
+SET DiabeticRetinopathyExcl = 0
+WHERE DiabeticRetinopathyExcl IS NULL;  
 
 -- RVOExcl (retinal vein occlusion before baseline (inclusive of central, branch, hemi-branch, & macular-branch))
 UPDATE AMDSyntheticEyleaArmMeta p
@@ -283,6 +323,10 @@ JOIN ETCSurgeryIndications i
   THEN 1
   ELSE 0
   END;
+  
+UPDATE AMDSyntheticEyleaArmMeta
+SET RVOExcl = 0
+WHERE RVOExcl IS NULL; 
 
 -- GlaucomaSurgExcl (trabeculectomy before baseline)
 UPDATE AMDSyntheticEyleaArmMeta p
@@ -298,11 +342,38 @@ JOIN ETCSurgery s
   ELSE 0
   END;
 
+UPDATE AMDSyntheticEyleaArmMeta
+SET GlaucomaSurgExcl = 0
+WHERE GlaucomaSurgExcl IS NULL;
+
 -- CornealTransplantExcl
+UPDATE AMDSyntheticEyleaArmMeta p
+JOIN ETCSurgery s
+  ON p.PatientID = s.PatientID AND
+     p.Eye = s.EyeCode AND
+     p.SiteID = s.SiteID
+  SET p.CornealTransplantExcl =
+  CASE
+  WHEN s.ProcedureDesc LIKE '%keratoplasty%' AND
+       s.EncounterDate <= p.BaselineDate
+  THEN 1
+  ELSE 0
+  END;
+  
+UPDATE AMDSyntheticEyleaArmMeta
+SET CornealTransplantExcl = 0
+WHERE CornealTransplantExcl IS NULL;
 
 -- SubMacSurgExcl
 
--- Export to .csv (& convert to snake case)
+
+UPDATE AMDSyntheticEyleaArmMeta
+SET SubMacSurgExcl = 0
+WHERE SubMacSurgExcl IS NULL;
+
+-- Update all Excl fills that are NULL to 0 (this is where there were no joins—or perhaps an anti-join update query for each?)
+
+-- Export to .csv (& convert variable names to snake case)
 SELECT  
    AgeAtBaseline AS age_at_baseline,
    BaselineDate AS baseline_date,
@@ -333,6 +404,6 @@ SELECT
    RVOExcl AS rvo_excl,
    GlaucomaSurgExcl AS glaucoma_excl,
    CornealTransplantExcl AS corneal_transplant_excl,
-   SubMacSurgExcl AS sub_mac_surg_excl,
+   SubMacSurgExcl AS sub_mac_surg_excl
 FROM AMDSyntheticEyleaArmMeta;
   
