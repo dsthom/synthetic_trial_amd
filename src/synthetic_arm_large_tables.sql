@@ -44,25 +44,3 @@ CREATE INDEX idx_nvAMDVisualAcuity_st_ei ON nvAMDVisualAcuity (`SiteID`, `Encoun
 CREATE INDEX idx_nvAMDVisualAcuity_pt_e ON nvAMDVisualAcuity (`PatientID`, `Eye`);
 
 DELETE FROM 10yearAMDVA_simple_meta WHERE ETDRS = -10000;
-
--- calculate WeeksFromBaseline and DaysFromBaseline for va table
-ALTER TABLE nvAMDVisualAcuity
-  ADD COLUMN WeeksFromBaseline INT(11) DEFAULT NULL,
-  ADD COLUMN DaysFromBaseline INT(11) DEFAULT NULL;
-
--- WeeksFromBaseline & DaysFromBaseline
--- WORK IN PROGRESS BELOW.
-UPDATE nvAMDVisualAcuity v
-JOIN AMDSyntheticEyleaArmMeta p
-ON v.PatientID = p.PatientID AND v.Eye = p.Eye
-SET WeeksFromBaseline = YEAR(v.Date) * 52 + WEEK(v.Date) -
-                        YEAR(p.BaselineDate) * 52 - WEEK(p.BaselineDate),
-    DaysFromBaseline = DATEDIFF(v.Date, p.BaselineDate);
-
---original (but will ignore the year)
-UPDATE nvAMDVisualAcuity v
-JOIN AMDSyntheticEyleaArmMeta p
-ON v.PatientID = p.PatientID AND v.Eye = p.Eye
-SET WeeksFromBaseline = (week(p.BaselineDate) - week(v.Date)),
-    DaysFromBaseline = DATEDIFF(v.Date, p.BaselineDate);
-  
