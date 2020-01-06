@@ -144,7 +144,7 @@ amd_irf_srf_large_tables.sql
   */
   
   UPDATE amd_synthetic_eylea_arm_study_table
-  SET estimated_study_exit = DATE_ADD(baseline_date, INTERVAL 378 DAY);
+  SET estimated_study_exit = DATE_ADD(eylea_start_date, INTERVAL 378 DAY);
 
 -- 2020-01-06 14:38:32.8050
 
@@ -159,7 +159,7 @@ amd_irf_srf_large_tables.sql
     FROM nvAMD_visual_acuity v
     WHERE p.PatientID = v.PatientID AND 
           p.EyeCode = v.EyeCode AND 
-          v.EncounterDate > p.baseline_date AND
+          v.EncounterDate > p.eylea_start_date AND
           v.EncounterDate <= p.estimated_study_exit
     LIMIT 1
   );
@@ -273,13 +273,13 @@ amd_irf_srf_large_tables.sql
   -- if two eyes, assign earliest diagnosed
   
   UPDATE amd_synthetic_eylea_arm_study_table p1,
-  	(SELECT MIN(baseline_date) AS index_date, PatientID, EyeCode
+  	(SELECT MIN(eylea_start_date) AS index_date, PatientID, EyeCode
   	FROM amd_synthetic_eylea_arm_study_table
   	WHERE index_eye IS NULL
   	GROUP BY PatientID
-  	HAVING COUNT(DISTINCT baseline_date) > 1) p2
+  	HAVING COUNT(DISTINCT eylea_start_date) > 1) p2
   SET index_eye = 1
-  WHERE p1.PatientID = p2.PatientID AND p1.baseline_date = p2.index_date;
+  WHERE p1.PatientID = p2.PatientID AND p1.eylea_start_date = p2.index_date;
 
 -- 2020-01-06 14:39:12.4870
 
@@ -334,7 +334,7 @@ amd_irf_srf_large_tables.sql
   */
   
   UPDATE amd_synthetic_eylea_arm_study_table p1,
-    (SELECT baseline_date AS index_date, PatientID
+    (SELECT eylea_start_date AS index_date, PatientID
     FROM amd_synthetic_eylea_arm_study_table
     WHERE index_eye = 1
     ) p2
@@ -345,13 +345,13 @@ amd_irf_srf_large_tables.sql
 
   
   /*
-  -- age_at_baseline (years between perturbed date of bith and baseline_date)
+  -- age_at_baseline (years between perturbed date of bith and eylea_start_date)
   */
   
   UPDATE amd_synthetic_eylea_arm_study_table p
   JOIN ETCPatientDetails d
   ON p.PatientID = d.PatientID 
-  SET age_at_baseline = DATEDIFF(p.baseline_date, d.PerturbedDateofBirth) / 365.25;
+  SET age_at_baseline = DATEDIFF(p.eylea_start_date, d.PerturbedDateofBirth) / 365.25;
 
 -- 2020-01-06 14:49:29.4860
 
@@ -366,7 +366,7 @@ amd_irf_srf_large_tables.sql
     FROM nvAMD_injections i
     WHERE p.PatientID = i.PatientID AND 
           p.EyeCode = i.EyeCode AND 
-          i.EncounterDate >= p.baseline_date AND 
+          i.EncounterDate >= p.eylea_start_date AND 
           i.EncounterDate <= p.study_exit AND
           i.InjectedDrugDesc = 'Eylea 2 mg/0.05ml (aflibercept)'
   );
@@ -394,8 +394,8 @@ amd_irf_srf_large_tables.sql
   
   UPDATE amd_synthetic_eylea_arm_study_table
   SET switch_excl = CASE 
-                    WHEN avastin_start_date >= baseline_date AND avastin_start_date < study_exit OR
-                         lucentis_start_date >= baseline_date AND lucentis_start_date < study_exit
+                    WHEN avastin_start_date >= eylea_start_date AND avastin_start_date < study_exit OR
+                         lucentis_start_date >= eylea_start_date AND lucentis_start_date < study_exit
                     THEN 1
                     ELSE 0
                     END;
@@ -416,7 +416,7 @@ amd_irf_srf_large_tables.sql
     WHEN s.ProcedureDesc IN ('stereotactic radiotherapy', 
                              'transpupillary thermotherapy',
                              '%photodynamic therapy%') AND
-         s.EncounterDate <= p.baseline_date
+         s.EncounterDate <= p.eylea_start_date
     THEN 1
     ELSE 0
     END;
@@ -469,7 +469,7 @@ amd_irf_srf_large_tables.sql
     SET p.clinical_trial_excl =
     CASE
     WHEN i.InjectedDrugDesc LIKE '%Macugen%' AND
-         i.EncounterDate <= p.baseline_date
+         i.EncounterDate <= p.eylea_start_date
     THEN 1
     ELSE 0
     END;
@@ -499,7 +499,7 @@ amd_irf_srf_large_tables.sql
                                 '%triamcinolone%',
                                 '%Triesence%',
                                 '%implant%') AND
-         i.EncounterDate <= p.baseline_date
+         i.EncounterDate <= p.eylea_start_date
     THEN 1
     ELSE 0
     END;
@@ -525,7 +525,7 @@ amd_irf_srf_large_tables.sql
     SET p.vitrectomy_excl =
     CASE
     WHEN s.ProcedureDesc LIKE '%vitrectomy%' AND
-         s.EncounterDate <= p.baseline_date
+         s.EncounterDate <= p.eylea_start_date
     THEN 1
     ELSE 0
     END;
@@ -554,7 +554,7 @@ amd_irf_srf_large_tables.sql
          d.DRGradeDesc LIKE 'Scatter (PRP) Retinal Laser Scars Visible' OR 
          d.DRGradeDesc IN ('R1', 'R2', 'R3', 'M1', 'P') OR
          d.DRGradeDesc LIKE 'Proliferative DR' AND
-         d.EncounterDate <= p.baseline_date
+         d.EncounterDate <= p.eylea_start_date
     THEN 1
     ELSE 0
     END;
@@ -580,7 +580,7 @@ amd_irf_srf_large_tables.sql
     SET p.rvo_excl =
     CASE
     WHEN i.IndicationDesc LIKE '%retinal vein occlusion%' AND
-         i.EncounterDate <= p.baseline_date
+         i.EncounterDate <= p.eylea_start_date
     THEN 1
     ELSE 0
     END;
@@ -606,7 +606,7 @@ amd_irf_srf_large_tables.sql
     SET p.glaucoma_excl =
     CASE
     WHEN s.ProcedureDesc LIKE '%trabeculectomy%' AND
-         s.EncounterDate <= p.baseline_date
+         s.EncounterDate <= p.eylea_start_date
     THEN 1
     ELSE 0
     END;
@@ -632,7 +632,7 @@ amd_irf_srf_large_tables.sql
     SET p.corneal_transplant_excl =
     CASE
     WHEN s.ProcedureDesc LIKE '%keratoplasty%' AND
-         s.EncounterDate <= p.baseline_date
+         s.EncounterDate <= p.eylea_start_date
     THEN 1
     ELSE 0
     END;
