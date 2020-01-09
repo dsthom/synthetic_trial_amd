@@ -1,0 +1,179 @@
+---
+title: "matching_synthetic_arm_to_abc_trial_v2"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+Like `matching_synthetic_arm_to_abc_trial.Rmd`, but the propensity scoring is derived from a logistic regression fitted to abc data (i.e. probability being randomised to recieve Avastin vs. SOC) and then this model is used to calculate the ps of potential synthetic controls.
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+library(texPreview)
+tex_opts$set(
+  density = 600  # High resolution LaTeX output
+)
+# Include HTML images when knitting with github_document
+if (isTRUE(getOption('knitr.in.progress'))) {
+  tex_opts$set(
+    returnType = "html"
+  )
+} 
+```
+
+Load packages.
+
+```{r message=FALSE}
+library(MatchIt)
+library(tidymodels)
+library(tidyverse)
+```
+
+Assign default ggplot theme.
+
+```{r}
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+```
+
+Read characteristics of abc subjects.
+
+```{r}
+abc <- read_csv("data/abc_patient_characteristics.csv",
+                    col_types = cols(
+                      id = col_character())) %>% 
+  mutate(cohort = "abc")
+```
+
+Assign a dummy variable as being 1 if randomised to recieve Avastin and 0 if Eylea recieved.
+
+```{r}
+abc <- abc %>% 
+  # create avastin_dummy that is 1 if avastin recieved and 0 if eylea
+  mutate(avastin = if_else(treatment == "avastin", 1, 0)) %>% 
+  rename(age = age_at_baseline,
+         etdrs = baseline_etdrs)
+```
+
+# logit propensity scoring
+
+Baseline characteristics were balanced between the ABC and EHR arms on proensity scores derived from a logistic generalised linear model regressed on treatment recieved (1 if randomised to recieve Avastin/ 0 if Eylea recieved as per standard healthcare). Baseline characteristics contributing to the pronensity scores were `baseline_va`, `age_at_baseline`, `gender` (*AND POTENTIALLY MATCHED FOR OCT THICKNESS AND PED, IF AVAILABLE*).
+
+```{r}
+logit <- glm(formula = avastin ~
+               etdrs +
+               age + 
+               gender,
+               family = binomial(link = "logit"),
+             data = abc)
+```
+
+```{r echo=FALSE, results="ASIS"}
+equatiomatic::extract_eq(logit,
+                         use_coefs = TRUE,
+                         wrap = TRUE,
+                         terms_per_line = 3,
+                         operator_location = "start") %>% 
+  equatiomatic::preview()
+```
+
+```{r}
+  augment(logit,
+        data = abc,
+        type.predict = "response") %>% 
+  mutate(avastin = factor(avastin)) %>% 
+  ggplot(aes(x = .fitted, fill = avastin)) +
+  geom_density(alpha = 0.75, size = 0) +
+  labs(subtitle = "Distribution of propensity scores",
+       x = "Propensity score",
+       y = "Density") +
+  scale_fill_discrete(name = NULL, labels = c("Avastin arm", "SOC arm")) +
+  scale_x_continuous(breaks = seq(0, 1, 0.1),
+                     limits = c(0, 1))
+```
+
+All ABC avastin arm subejcts and potential synthetical controls were assigned a propensy score using our model trained on all ABC trial subjects. The ps distributions among the Avastin arm and potential synthetical controls was then plotted.
+
+Read the baseline characteristics of potential synthetic controls whom recieved Eylea & combine these into a single dataframe with the baseline characteristics of those in the Avastin arm.
+
+```{r}
+ehr <- read_csv("data/ehr_patient_characteristics.csv") %>% 
+  mutate(cohort = "ehr") %>% 
+  rename(age = age_at_baseline,
+         etdrs = baseline_etdrs)
+
+abc.ehr <- abc %>% 
+  filter(treatment == "avastin") %>% 
+  select(- avastin) %>% 
+  bind_rows(ehr)
+```
+
+Using our ps model to assign ps on our new dataframe.
+
+```{r}
+augment(logit,
+        data = abc,
+        newdata = abc.ehr,
+        type.predict = "response") %>% 
+  ggplot(aes(x = .fitted, fill = cohort)) +
+  geom_density(alpha = 0.75, size = 0) +
+  labs(subtitle = "Distribution of propensity scores",
+       x = "Propensity score",
+       y = "Density") +
+  scale_fill_discrete(name = NULL, labels = c("ABC Avastin arm", "Potential synthetic controls")) +
+  scale_x_continuous(breaks = seq(0, 1, 0.1),
+                     limits = c(0, 1))
+```
+
+# singleplex psm
+
+COmbine `MatchIt` with `map`
+
+```{r}
+set.seed(1337)
+
+trial <- abc.ehr %>% 
+  nest() %>% 
+  mutate(match = map(.x, ~ ))
+```
+
+psm.output <- matchit(formula = stw ~ tot + min + dis,
+                      data = schools,
+                      method = "nearest", # nearest-neighbour matching
+                      ratio = 1) # specifies 1:1 matching
+
+Play around with thealgortihms to find that which best balances covariates/ps.
+
+* check the balance of ps, and each of the coavriates included in the ps model
+
+
+
+# paralell psm
+
+in progress
+```{r}
+i <- 1
+
+while(i <= 10){
+  mutate(abc.arm, iteration = i)
+  
+  i <- i + 1
+}
+```
+
+AFTER MATCHING, AUC BETWEEN ABC & EHR PS DISTRIBUTIONS SHOULD BE ~ 0.5. INDEED, COAVRIATES INCLDUED IN THE PROPENSITY SCORE SHOIULD BE MATCHED.
+
+CALCULATE 'VARIANCE OF THE EFFECT ESTIATES'.
+
+# Analysis 
+
+adjust for injection_count in the analysis.
