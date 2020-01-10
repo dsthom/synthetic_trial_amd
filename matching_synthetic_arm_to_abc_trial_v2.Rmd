@@ -6,9 +6,10 @@ always_allow_html: yes
 output: github_document
 ---
 
-Like `matching_synthetic_arm_to_abc_trial.Rmd`, but the propensity scoring is derived from a logistic regression fitted to abc data (i.e. probability being randomised to recieve Avastin vs. SOC) and then this model is used to calculate the ps of potential synthetic controls.
+Like `matching_synthetic_arm_to_abc_trial.Rmd`, but the propensity scoring is derived from a logistic regression fitted to abc data (i.e. probability of sbeing randomised to recieve Avastin vs. SOC) and then this model is used to calculate the ps of potential synthetic controls.
 
 # Setup
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
     echo = TRUE,      # output code chunks
@@ -19,7 +20,7 @@ library(texPreview)
 tex_opts$set(
   density = 600  # High resolution LaTeX output
 )
-# Include HTML images when knitting with github_document
+# include HTML images when knitting with github_document
 if (isTRUE(getOption('knitr.in.progress'))) {
   tex_opts$set(
     returnType = "html"
@@ -30,7 +31,6 @@ if (isTRUE(getOption('knitr.in.progress'))) {
 Load packages.
 
 ```{r message=FALSE}
-library(MatchIt)
 library(tidymodels)
 library(tidyverse)
 ```
@@ -101,7 +101,7 @@ equatiomatic::extract_eq(logit,
                      limits = c(0, 1))
 ```
 
-All ABC avastin arm subejcts and potential synthetical controls were assigned a propensy score using our model trained on all ABC trial subjects. The ps distributions among the Avastin arm and potential synthetical controls was then plotted.
+All ABC avastin arm subejcts and potential synthetical controls were assigned a propensy score using our model trained on all ABC trial subjects. The ps distributions among the Avastin arm and potential synthetic controls was then plotted.
 
 Read the baseline characteristics of potential synthetic controls whom recieved Eylea & combine these into a single dataframe with the baseline characteristics of those in the Avastin arm.
 
@@ -120,10 +120,12 @@ abc.ehr <- abc %>%
 Using our ps model to assign ps on our new dataframe.
 
 ```{r}
-augment(logit,
+ps <- augment(logit,
         data = abc,
         newdata = abc.ehr,
-        type.predict = "response") %>% 
+        type.predict = "response") 
+
+ps %>% 
   ggplot(aes(x = .fitted, fill = cohort)) +
   geom_density(alpha = 0.75, size = 0) +
   labs(subtitle = "Distribution of propensity scores",
@@ -136,44 +138,103 @@ augment(logit,
 
 # singleplex psm
 
-COmbine `MatchIt` with `map`
+The *fundamental problem of causal inference* is that we know only the factual and not counterfactual outcomes.
 
+Tenets of causal inference:
+
+* independence---that the treatment mechanism is independent of outcome (this we assume for RCTs)
+* strong ignorability (assumptions we must make for observation data) of I) unconfoundness (that treatment assignment and potential outcomes are independent of covariate attributes); and II) overlap ().
+
+
+'Notice that NNM faces the risk of bad matches if the closest neighbor is far away. This issue can be resolved by imposing a tolerance level on the maximum distance,known as the caliper (see e.g., [M. Lunt. Selecting an appropriate caliper can be essential for achieving good
+balance with propensity score matching. American journal of epidemiology,
+179(2):226–235, 2014.]). There are some rules of thumb for choosing
+the calipers (see e.g., [M. Lunt. Selecting an appropriate caliper can be essential for achieving good
+balance with propensity score matching. American journal of epidemiology,
+179(2):226–235, 2014.s]).
+
+Nearest neighbour matching OR within a specified caliper without replacement using the 'tidyverse'/SQL [https://arxiv.org/pdf/1609.03540.pdf].
+
+
+Try first with a caliper equal to 0.1 SD of ABC avastin propensity score.[see simulation study: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3873103/#__ffn_sectitle]
 ```{r}
-set.seed(1337)
-
-trial <- abc.ehr %>% 
-  nest() %>% 
-  mutate(match = map(.x, ~ ))
+sd(ps$.fitted[ps$treatment == 'avastin'])
 ```
 
-psm.output <- matchit(formula = stw ~ tot + min + dis,
-                      data = schools,
-                      method = "nearest", # nearest-neighbour matching
-                      ratio = 1) # specifies 1:1 matching
+```{r}
+ps <- ps %>% 
+  rename(propensity_score = .fitted) %>% 
+  # add treatment dummmy variable
+  mutate(treatment = if_else(treatment == "avastin", 1, 0)) %>% 
+  # drop se.fit
+  select(-.se.fit) %>% 
+  mutate(match = "1")
+```
 
-Play around with thealgortihms to find that which best balances covariates/ps.
+```{r}
+# randomly shuffle data before submitting to function
+ps <- ps %>% 
+    sample_n(size = nrow(ps), # n must be equal to n_rows
+             replace = FALSE)
+
+# propensity score matching
+psm <- Matching::Match(Tr = ps$treatment, # requires verctors
+                       X = ps$propensity_score, # requires verctors
+                       M = 1, # 1:1 matching
+                       caliper = 0.1, # units are as SD
+                       replace = FALSE,
+                       ties = FALSE)
+
+# retrieve output
+matches <- ps[unlist(psm[c("index.treated", "index.control")]), ]
+```
+
+```{r}
+matches %>% 
+  ggplot(aes(x = propensity_score)) +
+  facet_grid(.~ cohort) +
+  geom_histogram(alpha = 0.5, size = 0) +
+  labs(subtitle = "Distribution of propensity scores",
+       x = "Propensity score",
+       y = "Density") +
+  scale_x_continuous(breaks = seq(0, 1, 0.2),
+                     limits = c(0, 1))
+```
+run other diagnostics (violin plot, box plot, AUC etc.)
+
+How many iterations can you run before AUC tails off? Plot iterations x versus AUC on y.
+
+# iterative matching
+
+shuffle between each iteration (necessary to set new seed?)
+exclude those already matched from subsequent iterations
+
+```{r}
+# shuffled as as row in list column & 50 (set new seed per iteration)
+
+```
+
+MatchIt willl msot likely not work since we want to score a dataset independent of that used to train the model. We thus need a package or functions that undertake matching algortihms.
+MatchIt offers:
+
+* exact matching
+* full matching
+* genetic matching
+* nearest neighbour matching
+* optimal matching
+* subclassifications
+
+`Matching` looks promising.
+
+Play around with the algortihms to find that which best balances covariates/ps (use `Matching::MatchBalance`)
 
 * check the balance of ps, and each of the coavriates included in the ps model
 
-
-
-# paralell psm
-
-in progress
-```{r}
-i <- 1
-
-while(i <= 10){
-  mutate(abc.arm, iteration = i)
-  
-  i <- i + 1
-}
-```
 
 AFTER MATCHING, AUC BETWEEN ABC & EHR PS DISTRIBUTIONS SHOULD BE ~ 0.5. INDEED, COAVRIATES INCLDUED IN THE PROPENSITY SCORE SHOIULD BE MATCHED.
 
 CALCULATE 'VARIANCE OF THE EFFECT ESTIATES'.
 
-# Analysis 
+# Analysis (compare two Loess curveS?)
 
 adjust for injection_count in the analysis.
