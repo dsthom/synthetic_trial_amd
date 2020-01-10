@@ -31,7 +31,6 @@ amd_irf_srf_large_tables.sql
     ADD COLUMN baseline_va INT(11) DEFAULT NULL,
     ADD COLUMN estimated_study_exit DATE DEFAULT NULL,
     ADD COLUMN study_exit DATE DEFAULT NULL, 
-    ADD COLUMN baseline_eylea_date DATE DEFAULT NULL,
     ADD COLUMN avastin_start_date DATE DEFAULT NULL,
     ADD COLUMN lucentis_start_date DATE DEFAULT NULL,
     ADD COLUMN avastin_lucentis_before_eylea INT(11) DEFAULT NULL,
@@ -130,20 +129,6 @@ amd_irf_srf_large_tables.sql
           v.EncounterDate > p.baseline_eylea_date AND
           v.EncounterDate <= p.estimated_study_exit
     LIMIT 1
-  );
-
-  /*
-  -- baseline_eylea_date
-  */
-  
-  UPDATE amd_synthetic_eylea_arm_study_table p
-  SET p.baseline_eylea_date = (
-  SELECT MIN(i.EncounterDate)
-  FROM nvAMD_injections i
-  WHERE p.PatientID = i.PatientID AND 
-        p.EyeCode = i.EyeCode AND
-        i.AntiVEGFInjection = 1 AND
-        i.InjectedDrugDesc = "Eylea 2 mg/0.05ml (aflibercept)"
   );
 
   /*
@@ -352,8 +337,7 @@ amd_irf_srf_large_tables.sql
     END;
 
   /*
-  -- clinical_trial_excl (Macugen before baseline---irregardless of whether during clinical trial).
-  Avastin or Luncetis before baseline previously excluded beforeassinging index_eye
+  -- clinical_trial_excl (Avastin, Lucentis or Macugen before baseline---irregardless of whether during clinical trial).
   */
   
   UPDATE amd_synthetic_eylea_arm_study_table p
@@ -362,7 +346,9 @@ amd_irf_srf_large_tables.sql
        p.EyeCode = i.EyeCode
     SET p.clinical_trial_excl =
     CASE
-    WHEN i.InjectedDrugDesc LIKE '%Macugen%' AND
+    WHEN i.InjectedDrugDesc IN ('%Macugen%',
+                                '%Avastin%',
+                                '%Lucentis%') AND
          i.EncounterDate <= p.baseline_eylea_date
     THEN 1
     ELSE 0
