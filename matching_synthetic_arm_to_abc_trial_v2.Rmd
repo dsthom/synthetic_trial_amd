@@ -20,6 +20,7 @@ library(texPreview)
 tex_opts$set(
   density = 600  # High resolution LaTeX output
 )
+
 # include HTML images when knitting with github_document
 if (isTRUE(getOption('knitr.in.progress'))) {
   tex_opts$set(
@@ -193,7 +194,7 @@ matches <- ps[unlist(psm[c("index.treated", "index.control")]), ]
 matches %>% 
   ggplot(aes(x = propensity_score)) +
   facet_grid(.~ cohort) +
-  geom_histogram(alpha = 0.5, size = 0) +
+  geom_histogram(alpha = 0.75, size = 0, fill = "#FF6666") +
   labs(subtitle = "Distribution of propensity scores",
        x = "Propensity score",
        y = "Density") +
@@ -204,7 +205,55 @@ run other diagnostics (violin plot, box plot, AUC etc.)
 
 How many iterations can you run before AUC tails off? Plot iterations x versus AUC on y.
 
-# iterative matching
+# iterative matching with map
+```{r}
+# create a list of 10 identical dataframes
+iteration.list <- list()
+
+for (i in 1:10){ # state n iterations
+  iteration.list[[i]] = ps %>% 
+    # shuffle each iteration
+    sample_n(size = nrow(ps), # n must be equal to n_rows
+             replace = FALSE)  
+  iteration.list[[i]][[10]] <-  i
+}
+
+iteration.list <- do.call(rbind.data.frame, iteration.list)
+
+iteration.list.col <- iteration.list %>% 
+  rename(iteration = V10) %>% 
+  group_by(iteration) %>% 
+  nest()
+```
+
+```{r}
+iteration.list.col <- iteration.list.col %>% 
+
+  mutate(psm_list = map(.x = data, ~ Matching::Match(Tr = ps$treatment,
+                                                     X = ps$propensity_score,
+                                                     M = 1, 
+                                                     caliper = 0.1,
+                                                     replace = FALSE,
+                                                     ties = FALSE))) %>% 
+  # error in extracting matches
+  mutate(matches = map(.x = psm_list, 
+                       ~ unlist(psm[c("index.treated", "index.control")]),))
+```
+
+gapminder %>% map_df(~(data.frame(n_distinct = n_distinct(.x),
+                                  class = class(.x))))
+
+Issues:
+
+* returning same controls for each iteration. You may need to create your own for loop/function that changes seed per iteration.
+* mutate(matches = map(.x = psm_list, ~ unlist(psm[c("index.treated", "index.control")]),))for [[4]] is a list of ids and not dataframe with associated with ids ()
+
+# iteration with bespoke function
+
+```{r}
+ps <- ps %>% 
+  mutate(match_counter = 0)
+```
 
 shuffle between each iteration (necessary to set new seed?)
 exclude those already matched from subsequent iterations
@@ -213,18 +262,6 @@ exclude those already matched from subsequent iterations
 # shuffled as as row in list column & 50 (set new seed per iteration)
 
 ```
-
-MatchIt willl msot likely not work since we want to score a dataset independent of that used to train the model. We thus need a package or functions that undertake matching algortihms.
-MatchIt offers:
-
-* exact matching
-* full matching
-* genetic matching
-* nearest neighbour matching
-* optimal matching
-* subclassifications
-
-`Matching` looks promising.
 
 Play around with the algortihms to find that which best balances covariates/ps (use `Matching::MatchBalance`)
 
