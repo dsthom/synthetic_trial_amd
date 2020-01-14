@@ -175,8 +175,8 @@ ps <- ps %>%
              replace = FALSE)
 
 # propensity score matching
-psm <- Matching::Match(Tr = ps$treatment, # requires verctors
-                       X = ps$propensity_score, # requires verctors
+psm <- Matching::Match(Tr = ps$treatment, # requires vectors
+                       X = ps$propensity_score, # requires vectors
                        M = 1, # 1:1 matching
                        caliper = 0.1, # units are as SD
                        replace = FALSE,
@@ -229,9 +229,9 @@ iteration.list.col <- iteration.list.col %>%
 ```
 
 ```{r}
-psm_for_map <- function(.x, match_ratio, caliper_sd, baseline_seed){
+psm_for_map <- function(.x, match_ratio, caliper_sd, seed){
    # set seed
-  set.seed(baseline_seed)
+  set.seed(seed)
   # match on psm
   psm <- Matching::Match(Tr = .x$treatment,
                          X = .x$propensity_score,
@@ -241,22 +241,21 @@ psm_for_map <- function(.x, match_ratio, caliper_sd, baseline_seed){
                          ties = FALSE)
   # update match_counter if matched (ONLY FOR CONTROLS)
     
-  # set new seed
-  set.seed(baseline_seed + 1)
-  matches <- ps[unlist(psm[c("index.treated", "index.control")]), ]
-  matches
+  # set new seed (UNNECESSARY)
+
+ .x[unlist(psm[c("index.treated", "index.control")]), ]
 }
 ```
 
 ```{r}
 iteration.list.col <- iteration.list.col %>% 
-  mutate(psm = map(.x = data, ~ psm_for_map(.x = .x,
+  mutate(psm = map(.x = data, ~ psm_for_map(.x, 
                                             match_ratio = 1,
                                             caliper_sd = 0.1,
-                                            baseline_seed = 1337)))
+                                            seed = 1337)))
 ```
 
-Error: matches controls with controls at present
+TO do: prevent matched controls being matched again during subsequent iterations
 
 # diagnostics
 run other diagnostics (violin plot, box plot, AUC etc.)
