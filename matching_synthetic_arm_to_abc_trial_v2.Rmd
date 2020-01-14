@@ -211,9 +211,6 @@ iteration.list <- list()
 
 for (i in 1:10){ # state n iterations
   iteration.list[[i]] <- ps %>% 
-    # shuffle each iteration (NECESSARY IF INCLUDED IN FUNCTION??)
-    sample_n(size = nrow(ps), # n must be equal to n_rows
-             replace = FALSE)  
   iteration.list[[i]][[11]] <-  i
 }
 ```
