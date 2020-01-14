@@ -211,6 +211,9 @@ iteration.list <- list()
 
 for (i in 1:10){ # state n iterations
   iteration.list[[i]] <- ps %>% 
+    # shuffle each iteration
+    sample_n(size = nrow(ps),
+             replace = FALSE)
   iteration.list[[i]][[11]] <-  i
 }
 ```
@@ -229,10 +232,6 @@ iteration.list.col <- iteration.list.col %>%
 psm_for_map <- function(.x, match_ratio, caliper_sd, baseline_seed){
    # set seed
   set.seed(baseline_seed)
-   # shuffle
-  .x <- .x %>% 
-    sample_n(size = nrow(.x), 
-             replace = FALSE)  
   # match on psm
   psm <- Matching::Match(Tr = .x$treatment,
                          X = .x$propensity_score,
