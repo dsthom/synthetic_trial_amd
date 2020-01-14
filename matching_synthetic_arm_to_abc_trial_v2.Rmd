@@ -102,7 +102,10 @@ equatiomatic::extract_eq(logit,
                      limits = c(0, 1))
 ```
 
-All ABC avastin arm subejcts and potential synthetical controls were assigned a propensy score using our model trained on all ABC trial subjects. The ps distributions among the Avastin arm and potential synthetic controls was then plotted.
+** WHY IS THE AVASTIN ARM PEAK NOT THE SAME AS IN THE GRAPH ABOVE??**
+
+
+All ABC avastin arm subejcts and potential synthetical controls were assigned a propensy score using our model trained on all ABC trial subjects. The ps distributions among the Avastin arm and potential synthetic controls were then plotted.
 
 Read the baseline characteristics of potential synthetic controls whom recieved Eylea & combine these into a single dataframe with the baseline characteristics of those in the Avastin arm.
 
@@ -240,9 +243,8 @@ psm_for_map <- function(.x, match_ratio, caliper_sd, seed){
                          replace = FALSE,
                          ties = FALSE)
   # update match_counter if matched (ONLY FOR CONTROLS)
-    
-  # set new seed (UNNECESSARY)
-
+  
+  #output
  .x[unlist(psm[c("index.treated", "index.control")]), ]
 }
 ```
@@ -258,12 +260,25 @@ iteration.list.col <- iteration.list.col %>%
 TO do: prevent matched controls being matched again during subsequent iterations
 
 # diagnostics
-run other diagnostics (violin plot, box plot, AUC etc.)
+
+Calculate AUC for each iteration.
+AFTER MATCHING, AUC BETWEEN ABC & EHR PS DISTRIBUTIONS SHOULD BE ~ 0.5. INDEED, COAVRIATES INCLDUED IN THE PROPENSITY SCORE SHOIULD BE MATCHED.
+```{r}
+iteration.list.col <- iteration.list.col %>% 
+  mutate(auc = map(psm,
+                       ~ roc_auc(.x,
+                                 truth = factor(treatment),
+                                 propensity_score)))
+```
+
+
+```{r}
+```
+
+
+run other diagnostics (violin plot, box plot)
 
 * check the balance of ps, and each of the coavriates included in the ps model
-
-
-AFTER MATCHING, AUC BETWEEN ABC & EHR PS DISTRIBUTIONS SHOULD BE ~ 0.5. INDEED, COAVRIATES INCLDUED IN THE PROPENSITY SCORE SHOIULD BE MATCHED.
 
 CALCULATE 'VARIANCE OF THE EFFECT ESTIATES'.
 
