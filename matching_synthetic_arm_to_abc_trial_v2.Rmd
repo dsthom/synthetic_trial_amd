@@ -91,7 +91,8 @@ equatiomatic::extract_eq(logit,
   augment(logit,
         data = abc,
         type.predict = "response") %>% 
-  mutate(avastin = factor(avastin)) %>% 
+  mutate(avastin = factor(avastin, levels = c(1, 0))) %>% 
+  drop_na(treatment) %>% 
   ggplot(aes(x = .fitted, fill = avastin)) +
   geom_density(alpha = 0.75, size = 0) +
   labs(subtitle = "Distribution of propensity scores",
@@ -101,9 +102,6 @@ equatiomatic::extract_eq(logit,
   scale_x_continuous(breaks = seq(0, 1, 0.1),
                      limits = c(0, 1))
 ```
-
-** WHY IS THE AVASTIN ARM PEAK NOT THE SAME AS IN THE GRAPH ABOVE??**
-
 
 All ABC avastin arm subejcts and potential synthetical controls were assigned a propensy score using our model trained on all ABC trial subjects. The ps distributions among the Avastin arm and potential synthetic controls were then plotted.
 
@@ -137,7 +135,8 @@ ps %>%
        y = "Density") +
   scale_fill_discrete(name = NULL, labels = c("ABC Avastin arm", "Potential synthetic controls")) +
   scale_x_continuous(breaks = seq(0, 1, 0.1),
-                     limits = c(0, 1))
+                     limits = c(0, 1)) + 
+  scale_y_continuous(limits = c(0, 4))
 ```
 
 # singleplex psm
