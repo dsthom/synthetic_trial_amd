@@ -31,6 +31,9 @@ amd_irf_srf_large_tables.sql
     ADD COLUMN baseline_va INT(11) DEFAULT NULL,
     ADD COLUMN estimated_study_exit DATE DEFAULT NULL,
     ADD COLUMN study_exit DATE DEFAULT NULL, 
+    ADD COLUMN study_exit_va INT(11) DEFAULT NULL,
+    ADD COLUMN last_eylea_injection DATE DEFAULT NULL,
+    ADD COLUMN days_between_injection_and_exit_va INT(11) DEFAULT NULL,
     ADD COLUMN avastin_start_date DATE DEFAULT NULL,
     ADD COLUMN lucentis_start_date DATE DEFAULT NULL,
     ADD COLUMN avastin_lucentis_before_eylea INT(11) DEFAULT NULL,
@@ -39,8 +42,16 @@ amd_irf_srf_large_tables.sql
     ADD COLUMN index_date DATE DEFAULT NULL,
     ADD COLUMN age_at_baseline INT(11) DEFAULT NULL,
     ADD COLUMN injection_count INT(11) DEFAULT NULL,
+    
+    -- study-specific elligibility
     ADD COLUMN no_eylea_excl INT(11) DEFAULT 0,
     ADD COLUMN switch_excl INT(11) DEFAULT 0,
+    ADD COLUMN no_baseline_va_excl INT(11) DEFAULT 0,
+    ADD COLUMN no_exit_va_excl INT(11) DEFAULT 0,
+    ADD COLUMN baseline_etdrs_excl INT(11) DEFAULT 0,
+    ADD COLUMN missing_covariates_excl INT(11) DEFAULT 0,
+    
+    -- ABC trial elligibility
     ADD COLUMN radio_thermo_excl INT(11) DEFAULT 0,
     ADD COLUMN verteporfin_thermo_excl INT(11) DEFAULT 0,
     ADD COLUMN clinical_trial_excl INT(11) DEFAULT 0,
@@ -102,7 +113,7 @@ amd_irf_srf_large_tables.sql
 	
 	UPDATE amd_synthetic_eylea_arm_study_table s
 	SET s.baseline_va = (
-	SELECT MAX(v.RecordedNotationBestCorrected)
+	SELECT MAX(v.RecordedNotationBestMeasure)
 	FROM nvAMD_visual_acuity v
 	WHERE s.PatientID = v.PatientID AND 
 	      s.EyeCode = v.EyeCode AND
@@ -130,6 +141,41 @@ amd_irf_srf_large_tables.sql
           v.EncounterDate <= p.estimated_study_exit
     LIMIT 1
   );
+  
+  /*
+  -- study_exit_va (highest etdrs measurement taken on baseline_va_date)S)
+  */
+	
+	UPDATE amd_synthetic_eylea_arm_study_table s
+	SET s.study_exit_va = (
+	SELECT MAX(v.RecordedNotationBestMeasure)
+	FROM nvAMD_visual_acuity v
+	WHERE s.PatientID = v.PatientID AND 
+	      s.EyeCode = v.EyeCode AND
+	      s.study_exit = v.EncounterDate
+	);
+	
+	/*
+	--last_eylea_injection
+	*/
+	
+	UPDATE amd_synthetic_eylea_arm_study_table s
+	SET s.last_eylea_injection = (
+	  SELECT MAX(i.EncounterDate)
+	  FROM nvAMD_injections i
+	  WHERE s.PatientID = i.PatientID AND
+	        s.EyeCode = i.EyeCode AND
+	        i.EncounterDate <= study_exit AND
+	        i.InjectedDrugDesc = 'Eylea 2 mg/0.05ml (aflibercept)'
+	)
+	
+  /* 
+  -- days_between_injection_and_exit_va
+  */
+  
+  UPDATE amd_synthetic_eylea_arm_study_table
+  SET days_between_injection_and_exit_va = DATEDIFF(study_exit, last_eylea_injection)
+  ;
 
   /*
   -- avastin_start_date
@@ -256,7 +302,7 @@ amd_irf_srf_large_tables.sql
   WHERE p1.PatientID = p2.PatientID;
 
   /*
-  -- age_at_baseline (years between perturbed date of bith and baseline_eylea_date)
+  -- age_at_baseline (years between perturbed date of birth and baseline_eylea_date)
   */
   
   UPDATE amd_synthetic_eylea_arm_study_table p
@@ -278,7 +324,7 @@ amd_irf_srf_large_tables.sql
           i.EncounterDate <= p.study_exit AND
           i.InjectedDrugDesc = 'Eylea 2 mg/0.05ml (aflibercept)'
   );
-
+  
   /*
   no_eylea_excl
   */
@@ -301,6 +347,41 @@ amd_irf_srf_large_tables.sql
                     THEN 1
                     ELSE 0
                     END;
+
+  /* 
+  -- no_baseline_va_excl 
+  */
+  
+  UPDATE amd_synthetic_eylea_arm_study_table
+  SET no_baseline_va_excl = 1
+  WHERE baseline_va IS NULL;
+  
+  /*
+  no_exit_va_excl 
+  */
+  
+  UPDATE amd_synthetic_eylea_arm_study_table
+  SET no_exit_va_excl = 1
+  WHERE study_exit_va IS NULL;
+  
+  /*
+  baseline_etdrs_excl (1 if eye's baseline_va was not 25 to 73 inclusively (in 
+	allignment with NICE guidelines))
+  */
+  
+  UPDATE amd_synthetic_eylea_arm_study_table
+  SET baseline_etdrs_excl = 1
+  WHERE baseline_va < 25 OR
+        baseline_va > 73;
+  
+  /*
+  missing_covariates_excl
+  */
+  
+  UPDATE amd_synthetic_eylea_arm_study_table
+  SET missing_covariates_excl = 1
+  WHERE gender IS NULL OR
+        age_at_baseline IS NULL;
 
   /*
   -- radio_thermo_excl (stereotactic radiotherapy OR transpupillary thermotherapy OR %phytodynamic therapy before baseline)
@@ -469,3 +550,34 @@ amd_irf_srf_large_tables.sql
 
 SELECT *
 FROM amd_synthetic_eylea_arm_study_table;
+
+/*
+-- Export va measurements for those fufilinng abc crtieria to .csv
+*/
+
+SELECT st.patient_eye, 
+       DATEDIFF(va.EncounterDate, st.baseline_eylea_date) / 7 AS week, 
+       va.RecordedNotationBestMeasure AS etdrs,
+       st.index_eye
+FROM amd_synthetic_eylea_arm_study_table st
+JOIN nvAMD_visual_acuity va
+ON st.PatientID = va.PatientID AND
+   st.EyeCode = va.EyeCode
+WHERE va.EncounterDate >= st.baseline_eylea_date AND
+      va.EncounterDate <= st.study_exit AND
+      no_eylea_excl IS 0 AND
+      switch_excl IS 0 AND
+      no_baseline_va_excl IS 0 AND
+      no_exit_va_excl IS 0 AND
+      baseline_etdrs_excl IS 0 AND
+      missing_covariates_excl IS 0 AND
+      radio_thermo_excl IS 0 AND
+      verteporfin_thermo_excl IS 0 AND
+      clinical_trial_excl IS 0 AND
+      intravitreal_excl IS 0 AND
+      vitrectomy_excl IS 0 AND
+      diabetic_retinopathy_excl IS 0 AND
+      rvo_excl IS 0 AND
+      glaucoma_excl IS 0 AND
+      corneal_transplant_excl IS 0 AND
+      sub_mac_surg_excl IS 0;
