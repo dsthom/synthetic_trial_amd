@@ -94,11 +94,14 @@ equatiomatic::extract_eq(logit,
   mutate(avastin = factor(avastin, levels = c(1, 0))) %>% 
   drop_na(treatment) %>% 
   ggplot(aes(x = .fitted, fill = avastin)) +
-  geom_density(alpha = 0.75, size = 0) +
+  geom_density(alpha = 0.75, 
+               size = 0) +
   labs(subtitle = "Distribution of propensity scores",
        x = "Propensity score",
        y = "Density") +
-  scale_fill_discrete(name = NULL, labels = c("Avastin arm", "SOC arm")) +
+  scale_fill_manual(values = c("#FF6B6B", "#63E8DF"),
+                    name = NULL,
+                    labels = c("Avastin arm", "SOC arm")) +
   scale_x_continuous(breaks = seq(0, 1, 0.1),
                      limits = c(0, 1))
 ```
@@ -133,7 +136,9 @@ ps %>%
   labs(subtitle = "Distribution of propensity scores",
        x = "Propensity score",
        y = "Density") +
-  scale_fill_discrete(name = NULL, labels = c("ABC Avastin arm", "Potential synthetic controls")) +
+  scale_fill_manual(values = c("#FF6B6B", "#FFE66D"),
+                    name = NULL,
+                    labels = c("ABC Avastin arm", "Potential synthetic controls")) +
   scale_x_continuous(breaks = seq(0, 1, 0.1),
                      limits = c(0, 1)) + 
   scale_y_continuous(limits = c(0, 4))
@@ -166,8 +171,7 @@ ps <- ps %>%
   # add treatment dummmy variable
   mutate(treatment = if_else(treatment == "avastin", 1, 0)) %>% 
   # drop se.fit
-  select(-.se.fit) %>% 
-  mutate(match = "1")
+  select(-.se.fit)
 ```
 
 ```{r}
@@ -195,12 +199,67 @@ matches %>%
   geom_histogram(alpha = 0.75, 
                  size = 0, 
                  fill = "#FF6666") +
-  labs(subtitle = "Distribution of propensity scores",
+  labs(subtitle = "Distribution of propensity scores after matching by propensity score",
        x = "Propensity score",
        y = "Density") +
   scale_x_continuous(breaks = seq(0, 1, 0.2),
                      limits = c(0, 1))
 ```
+
+# iterative matching with map (varying calliper between iterations)
+
+We want 10 simulations; each simulation has a callipar of varying SD (0.1 to 1.0 in 0.1 increments.
+
+```{r}
+# create a list of 10 identical dataframes
+iteration.list <- list()
+
+for (i in 1:10){ # state n iterations
+  iteration.list[[i]] <- ps %>% 
+    # shuffle each iteration
+    sample_n(size = nrow(ps),
+             replace = FALSE)
+  iteration.list[[i]][[9]] <-  i
+}
+```
+
+```{r}
+# convert from list to list column
+iteration.list.col <- do.call(rbind.data.frame, iteration.list)
+
+iteration.list.col <- iteration.list.col %>% 
+  rename(iteration = V9) %>% 
+  group_by(iteration) %>% 
+  nest() 
+```
+
+```{r}
+set.seed(1337)
+
+iteration.list.col <- iteration.list.col %>% 
+  mutate(psm_object = map(.x = data, 
+                          ~ Matching::Match(Tr = .x$treatment,
+                                            X = .x$propensity_score, 
+                                            M = 1,
+                                            caliper = 0.1,
+                                            replace = FALSE,
+                                            ties = FALSE)),
+         matched_df = map2(.x = data,
+                           .y = psm_object,
+                          ~ .x[unlist(.y[c("index.treated", "index.control")]), ]
+         ))
+```
+
+Calculate AUC for each SD calliper.
+```{r}
+iteration.list.col <- iteration.list.col %>% 
+  mutate(auc = map(matched_df,
+                       ~ roc_auc(.x,
+                                 truth = factor(treatment),
+                                 propensity_score)))
+```
+
+USE MAP2 TO HAVE A DIFFERENT CALLIPER FOR EACH ITERATION.
 
 # iterative matching with map
 ```{r}
@@ -289,4 +348,33 @@ Play around with the algortihms to find that which best balances covariates/ps (
 
 Link va to cases and controls.
 
-adjust for injection_count in the analysis.
+```{r}
+abc.va <- read_csv("data/abc_va_longform.csv",
+                   col_types = cols(
+                     study_number = col_integer()
+                   )) %>% 
+  filter(treatment == "avastin") %>% 
+  rename(id = study_number) %>% 
+  select(id, week, etdrs) %>% 
+  arrange(id, week)
+```
+
+
+Read ehr, va (id, week, etdrs) then union.
+
+map(.x, left_join())
+
+
+# Notes fro MEH meeting
+AMD
+* run 5, 10, 50, etc. simulations until results converge.
+* adjust for n inections & time between last injection & week 54 va measurement.
+* restrict to n injections during 54 weeks (see initial doc)
+* restrict to those who has an injection within 8 weeks of week 54 va
+
+IMD-Cecile paper.
+* Pull va (basleine,3 months and 12 months)
+* n injections at 12 months
+
+
+# 
