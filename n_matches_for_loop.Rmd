@@ -1,0 +1,80 @@
+---
+title: "n_matches_for_loop"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+
+# Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+```
+
+
+```{r}
+library(tidyverse)
+```
+
+Read abc data.
+
+```{r}
+abc <- read_csv("data/abc_patient_characteristics.csv",
+                    col_types = cols(
+                      id = col_factor())) %>% 
+  mutate(
+    cohort = "abc",
+    gender_m = if_else(gender == "M", 1, 0)) %>% 
+  filter(treatment == "avastin") %>% 
+  rename(
+    age = age_at_baseline,
+    etdrs = baseline_etdrs)
+```
+
+Read ehr data.
+
+```{r}
+ehr <- read_csv("data/ehr_patient_characteristics.csv") %>% 
+  mutate(
+    cohort = "ehr",
+    gender_m = if_else(gender == "M", 1, 0)) %>% 
+  rename(age = age_at_baseline,
+         etdrs = baseline_etdrs)
+```
+
+Covnert to list-column workflow
+
+```{r}
+abc.nest <- abc %>% 
+  group_by(id) %>% 
+  nest()
+```
+
+```{r}
+abc.nest <- abc.nest %>% 
+  mutate(trial = map(.x = data, 
+                     ~ left_join(.x,
+                                 ehr,
+                                 by = c("gender_m",
+                                        "age",
+                                        "etdrs"),
+                                 keep = TRUE)))
+```
+
+Create bespoke function so that only n matches is returned.
+
+```{r}
+n_matches <- function(.x, .y, by){
+  output <- left_join(.x, 
+                      .y,
+                      by = c("gender",
+                             "age",
+                             "etdrs")) %>% 
+    nrow()
+}
+```
