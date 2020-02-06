@@ -101,7 +101,7 @@ equatiomatic::extract_eq(logit,
        y = "Density") +
   scale_fill_manual(values = c("#FF6B6B", "#63E8DF"),
                     name = NULL,
-                    labels = c("Avastin arm", "SOC arm")) +
+                    labels = c("ABC Avastin arm", "ABC SOC arm")) +
   scale_x_continuous(breaks = seq(0, 1, 0.1),
                      limits = c(0, 1))
 ```
@@ -230,18 +230,20 @@ iteration.list.col <- do.call(rbind.data.frame, iteration.list)
 iteration.list.col <- iteration.list.col %>% 
   rename(iteration = V9) %>% 
   group_by(iteration) %>% 
-  nest() 
+  nest() %>% 
+  mutate(sd = 0.1 * iteration)
 ```
 
 ```{r}
 set.seed(1337)
 
 iteration.list.col <- iteration.list.col %>% 
-  mutate(psm_object = map(.x = data, 
+  mutate(psm_object = map2(.x = data, 
+                           .y = sd,
                           ~ Matching::Match(Tr = .x$treatment,
                                             X = .x$propensity_score, 
                                             M = 1,
-                                            caliper = 0.1,
+                                            caliper = .y,
                                             replace = FALSE,
                                             ties = FALSE)),
          matched_df = map2(.x = data,
@@ -252,14 +254,78 @@ iteration.list.col <- iteration.list.col %>%
 
 Calculate AUC for each SD calliper.
 ```{r}
-iteration.list.col <- iteration.list.col %>% 
-  mutate(auc = map(matched_df,
-                       ~ roc_auc(.x,
-                                 truth = factor(treatment),
-                                 propensity_score)))
+# function that returns only .estimate from yardstick::roc_auc
+roc_auc_only <- function(.x, ..., truth) {
+  output <- roc_auc(.x,
+          ...,
+          truth)
+  
+  round(output$.estimate, 3)
+}
+
+iteration.list.col <- iteration.list.col %>%
+  mutate(auc = map_dbl(matched_df,
+                        ~ roc_auc_only(.x,
+                                 ... = propensity_score,
+                                 truth = factor(.x$treatment))))
 ```
 
-USE MAP2 TO HAVE A DIFFERENT CALLIPER FOR EACH ITERATION.
+Visualise.
+
+```{r}
+iteration.list.col %>% 
+  unnest(auc) %>% 
+  ggplot(aes(x = sd, y = auc)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(0.1, 1, by = 0.1),
+                     limits = c(0.1, 1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.1),
+                     limits = c(0, 1)) +
+  labs(x = "Caliper",
+       y = "AUC")
+```
+Unremarkable---why does not increasing caliper not decrease AUC?
+
+Is the algorithm just returning the same matches?
+
+* 64 & 10 = 640 matched controls---how many of these are unique?
+* check out [https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3873103/#__ffn_sectitle]---is 0--1 a sufficient variation in caliper?
+* should you write function that prevents replacement across iterations look at Matching::Match to see how they code without replacement?
+
+```{r}
+test <- iteration.list.col %>% 
+  select(iteration, matched_df) %>% 
+  unnest(matched_df)
+```
+
+```{r}
+test %>% 
+  filter(cohort == "ehr") %>% 
+  ungroup() %>% 
+  summarise(unique = n_distinct(id))
+```
+Across 10 iterations, 512 of 640 matched controls were unique (0.8)
+
+```{r}
+iteration.list.col %>% 
+  select(iteration, matched_df, sd) %>% 
+  unnest(matched_df) %>% 
+  ggplot(aes(x = propensity_score)) +
+  facet_grid(sd ~ cohort) +
+  geom_histogram()
+```
+
+```{r}
+iteration.list.col %>% 
+  select(iteration, matched_df, sd) %>% 
+  unnest(matched_df) %>% 
+  ggplot(aes(x = propensity_score, fill = cohort)) +
+  facet_grid(iteration ~.) +
+  geom_histogram(bins = 43, # equal to 0.1 sd
+                 alpha = 0.75)
+
+```
+
 
 # iterative matching with map
 ```{r}
