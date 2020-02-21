@@ -48,8 +48,6 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN third_injection_date DATE DEFAULT NULL,
   ADD COLUMN injection_count INT(3) DEFAULT NULL,
   
-  ADD COLUMN no_eylea_excl INT(11) DEFAULT 0, 
-  
   -- ABC-trial elligibility
 
   ADD COLUMN fellow_excl INT(1) DEFAULT 0,
@@ -62,6 +60,7 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN keratoplasty_excl INT(1) DEFAULT 0,
   ADD COLUMN other_cnv_excl INT(1) DEFAULT 0,
   ADD COLUMN concurrent_excl INT(1) DEFAULT 0,
+  ADD COLUMN uveitis_excl INT(1) DEFAULT 0,
   ADD COLUMN infection_excl INT(1) DEFAULT 0,
   ADD COLUMN intraocular_surg_excl INT(1) DEFAULT 0,
   
@@ -123,7 +122,7 @@ baseline_va (highest etdrs measurement taken on baseline_va_date)
 
 UPDATE amd_synthetic_eylea_arm_study_table s
 SET s.baseline_va = (
-SELECT MAX(v.ETDRS)
+SELECT MAX(v.max_etdrs)
 FROM nvAMD_visual_acuity v
 WHERE s.PatientID = v.PatientID AND 
       s.EyeCode = v.EyeCode AND
@@ -160,7 +159,7 @@ SET study_exit = (
 
 UPDATE amd_synthetic_eylea_arm_study_table s
 SET s.study_exit_va = (
-SELECT MAX(v.ETDRS)
+SELECT MAX(v.max_etdrs)
 FROM nvAMD_visual_acuity v
 WHERE s.PatientID = v.PatientID AND 
       s.EyeCode = v.EyeCode AND
@@ -275,7 +274,7 @@ GROUP BY PatientID
 HAVING SUM(index_eye) IS NULL;
 
 UPDATE amd_synthetic_eylea_arm_study_table s
-LEFT JOIN SYN_randomly_selected_eyes r
+JOIN SYN_randomly_selected_eyes r
 ON s.patient_eye = r.patient_eye
 SET s.index_eye = 1;
 
@@ -340,14 +339,6 @@ SET injection_count = (
 );
 
 /*
-no_eylea_excl REMOVE WHEN OPTIMISED
-*/
-
-UPDATE amd_synthetic_eylea_arm_study_table 
-SET no_eylea_excl = 1
-WHERE baseline_eylea_date IS NULL;
-
-/*
 ABC TRIAL ELIGIBLITY
 */
 
@@ -386,9 +377,9 @@ LEFT JOIN ETCSurgery s
      p.EyeCode = s.EyeCode
   SET p.radio_thermo_excl = 1
   WHERE s.ProcedureDesc IN ('stereotactic radiotherapy', 
-                           'transpupillary thermotherapy',
-                           '%photodynamic therapy%') AND
-       s.EncounterDate <= p.baseline_eylea_date;
+                           'transpupillary thermotherapy') OR
+        s.ProcedureDesc LIKE '%photodynamic therapy%' AND
+        s.EncounterDate <= p.baseline_eylea_date;
 
 /*
 -- verteporfin_thermo_excl
@@ -409,10 +400,10 @@ UPDATE amd_synthetic_eylea_arm_study_table p
 LEFT JOIN ETCInjections i
   ON p.PatientID = i.PatientID
   SET p.clinical_trial_excl = 1
-  WHERE i.InjectedDrugDesc IN ('%Macugen%',
-                              '%Avastin%',
-                              '%Lucentis%',
-                              'HARRIER trial drug',
+  WHERE i.InjectedDrugDesc LIKE '%Macugen%' OR
+        i.InjectedDrugDesc LIKE '%Avastin%' OR
+        i.InjectedDrugDesc LIKE '%Lucentis%' OR
+        i.InjectedDrugDesc IN('HARRIER trial drug',
                               'LEAVO trial drug') AND
         i.EncounterDate <= p.baseline_eylea_date;
         
@@ -474,15 +465,27 @@ LEFT JOIN ETCSurgeryIndications s
 ON p.PatientID = s.PatientID AND
    p.EyeCode = s.EyeCode
   SET p.concurrent_excl = 1
-  WHERE s.IndicationDesc IN (
-  '%cataract%',
-  '%macular oedema%'
-  '%diabetic retinopathy%', 
-  'diabetic maculopathy%',
-  'diabetic papillopathy'
+  WHERE s.IndicationDesc LIKE '%cataract%' OR
+        s.IndicationDesc LIKE '%macular oedema%' OR
+        s.IndicatioNDesc LIKE '%diabetic retinopathy%' OR
+        s.IndicationDesc LIKE 'diabetic maculopathy%' OR
+        s.IndicationDesc LIKE 'diabetic papillopathy' AND
+       s.EncounterDate >= p.baseline_eylea_date AND
+       s.EncounterDate <= p.study_exit_va;
+
+/*
+-- uvietis_excl
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table p
+JOIN ETCSurgeryIndications s
+ON p.PatientID = s.PatientID 
+  SET p.uveitis_excl = 1
+  WHERE s.IndicationDesc IN(
+  'idiopathic uveitis',
+  'Lyme disease uveitis'
   ) AND
-  s.EncounterDate >= p.baseline_eylea_date AND
-  s.EncounterDate <= p.study_exit_va;
+  s.EncounterDate <= p.baseline_eylea_date;
 
 /*
 -- infection_excl
@@ -491,7 +494,7 @@ ON p.PatientID = s.PatientID AND
 UPDATE amd_synthetic_eylea_arm_study_table p
 LEFT JOIN ETCSurgeryIndications s
 ON p.PatientID = s.PatientID 
-  SET infection_excl = 1
+  SET p.infection_excl = 1
   WHERE IndicationDesc LIKE '%conjunctivitis%' OR
         IndicationDesc LIKE '%keratitis%' OR
         IndicationDesc LIKE '%scleritis%' OR
@@ -502,13 +505,40 @@ ON p.PatientID = s.PatientID
 -- intraocular_surg_excl
 */
 
+DROP TEMPORARY TABLE IF EXISTS indications_other_than_amd_cataract;
+
+CREATE TEMPORARY TABLE indications_other_than_amd_cataract AS
+  SELECT DISTINCT su.IndicationDesc
+  FROM ETCSurgeryIndications su
+  RIGHT JOIN amd_synthetic_eylea_arm_study_table st
+  ON su.PatientID = st.PatientID AND
+     su.EyeCode = st.EyeCode
+  WHERE su.EncounterDate <= st.baseline_eylea_date
+  ORDER BY su.IndicationDesc;
+
+DELETE FROM indications_other_than_amd_cataract WHERE IndicationDesc LIKE '%cataract%';
+DELETE FROM indications_other_than_amd_cataract WHERE IndicationDesc IN(
+  'age-related macular degeneration',
+  'neovascular AMD (classic no occult CNV)',
+  'neovascular AMD (idiopathic polypoidal choroidal vasculopathy)',
+  'neovascular AMD (minimally classic CNV)',
+  'neovascular AMD (occult no classic CNV)',
+  'neovascular AMD (predominantly classic CNV)',
+  'neovascular AMD (retinal angiomatous proliferation)',
+  'neovascular AMD (subtype not specified)',
+  'suspected neovascular AMD',
+  'wet age-related macular degeneration'
+);
+
 UPDATE amd_synthetic_eylea_arm_study_table p
 LEFT JOIN ETCSurgeryIndications s
 ON p.PatientID = s.PatientID AND
    p.EyeCode = s.EyeCode
-   SET intraocular_surg_excl = 1
-WHERE IndicationDesc NOT LIKE '%cataract%';
-
+   SET p.intraocular_surg_excl = 1
+   WHERE (s.IndicationDesc) IN (
+    SELECT IndicationDesc FROM indications_other_than_amd_cataract
+   );
+  
 /*
 EMULATED TRIAL ELIGIBLITY
 */
@@ -565,6 +595,7 @@ WHERE fellow_excl = 0 AND
       keratoplasty_excl = 0 AND
       other_cnv_excl = 0 AND
       concurrent_excl = 0 AND
+      uvietis_excl = 0 AND
       infection_excl = 0 AND
       intraocular_surg_excl = 0 AND
       previous_vegf_excl = 0 AND
@@ -578,17 +609,28 @@ WHERE fellow_excl = 0 AND
 importing directly from kale into R.
 */
 
-
 SELECT *
 FROM amd_synthetic_eylea_arm_study_table
 WHERE eligibility = 1;
 
 /*
--- Export va measurements for those fufilinng abc crtieria to .csv
+-- Export va measurements for those fufilinng abc crtieria to va_eligible_eylea_arm.csv
 */
 
-/*
+SELECT v.patient_eye, 
+       v.EncounterDate, 
+       MAX(v.max_etdrs) AS ETDRS, 
+       DATEDIFF(v.EncounterDate, s.baseline_va_date) AS days, 
+       CEIL(DATEDIFF(v.EncounterDate, s.baseline_va_date) / 7) AS weeks 
+FROM amd_synthetic_eylea_arm_study_table s
+LEFT JOIN nvAMD_visual_acuity v 
+ON v.PatientID = s.PatientID AND
+   v.EyeCode = s.EyeCode
+WHERE s.eligibility = 1 AND
+      v.EncounterDate >= s.baseline_va_date AND
+      v.EncounterDate <= s.study_exit
+GROUP BY v.patient_eye, v.EncounterDate;
 
-TO DO:
-* drop no_eylea_excl when working
-*/ 
+/*
+SCRIPT END
+*/
