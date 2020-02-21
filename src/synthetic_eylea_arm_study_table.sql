@@ -79,6 +79,8 @@ patient_eye
 UPDATE amd_synthetic_eylea_arm_study_table
 SET patient_eye = CONCAT(PatientID, '-', EyeCode);
 
+CREATE INDEX idx_amd_synthetic_eylea_arm_study_table_patient_eye ON amd_synthetic_eylea_arm_study_table (`patient_eye`);
+
 /*
 gender
 */
