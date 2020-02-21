@@ -474,7 +474,7 @@ ON p.PatientID = s.PatientID AND
        s.EncounterDate <= p.study_exit_va;
 
 /*
--- uvietis_excl
+-- uveitis_excl
 */
 
 UPDATE amd_synthetic_eylea_arm_study_table p
@@ -595,7 +595,7 @@ WHERE fellow_excl = 0 AND
       keratoplasty_excl = 0 AND
       other_cnv_excl = 0 AND
       concurrent_excl = 0 AND
-      uvietis_excl = 0 AND
+      uveitis_excl = 0 AND
       infection_excl = 0 AND
       intraocular_surg_excl = 0 AND
       previous_vegf_excl = 0 AND
