@@ -20,6 +20,7 @@ Load frequently used packages.
 
 ```{r}
 library(survival)
+library(survminer)
 library(tidyverse)
 ```
 
@@ -82,11 +83,41 @@ eylea.exact.survival <- eylea.exact.survival %>%
     plotz = 
       map2(.x = km_models,
            .y = data,
-           ~ survminer::ggsurvplot(
-             fit = .x,
-             data = .y
+           ~ ggsurvplot(
+              fit = .x,
+              data = .y,
+              fun = "event",
+              conf.int = TRUE,
+              conf.int.style = "ribbon",
+              conf.int.alpha = 0.25,
+              censor.shape = "|",
+              risk.table = TRUE,
+              tables.height = 0.2,
+              fontsize = 3,
+              risk.table.title = "Sample n",
+              tables.theme = theme_cleantable(),
+              tables.y.text = FALSE,
+              font.family = "Courier",
+              break.time.by = 6,
+              xlim = c(0, 54),
+              ylim = c(0, 1),
+              title = "Kaplan-Meier", # pmap
+              legend.title = "",
+              legend.labs = c("Avastin", "Eylea"),
+              xlab = "Week",
+              ylab = "Cumulative event",
+              surv.median.line = "hv",
+              pval = TRUE,
+              pval.size = 4,
+              pval.coord = c(48, 1),
+              ggtheme = courier_bw
            )))
+
 ```
+to do: 
+
+* pmap so third parameter is the event as title (15 letetrs gain, etc.)
+* cowplot/patchwork intpo one (preferably with one legend)
 
 ```{r}
 walk(eylea.exact.survival[["plotz"]], print)
