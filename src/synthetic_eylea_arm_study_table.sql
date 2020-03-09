@@ -35,6 +35,10 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN baseline_va_date DATE DEFAULT NULL,
   ADD COLUMN baseline_va INT(3) DEFAULT NULL,
   ADD COLUMN estimated_study_exit DATE DEFAULT NULL,
+  ADD COLUMN study_exit_54 DATE DEFAULT NULL,
+  ADD COLUMN study_exit_va_54 INT(3) DEFAULT NULL,
+  ADD COLUMN study_exit_58 DATE DEFAULT NULL,
+  ADD COLUMN study_exit_va_58 INT(3) DEFAULT NULL,
   ADD COLUMN study_exit DATE DEFAULT NULL, 
   ADD COLUMN study_exit_va INT(3) DEFAULT NULL,
   ADD COLUMN recent_eylea_injection DATE DEFAULT NULL,
@@ -69,6 +73,7 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN switch_excl INT(1) DEFAULT 0,
   ADD COLUMN incomplete_loading_excl INT(1) DEFAULT 0,
   ADD COLUMN missing_covariates_excl INT(1) DEFAULT 0,
+  ADD COLUMN incomplete_followup_excl INT(1) DEFAULT 0,
   
   ADD COLUMN eligibility INT(1) DEFAULT 0;
 
@@ -138,35 +143,85 @@ WHERE s.PatientID = v.PatientID AND
 UPDATE amd_synthetic_eylea_arm_study_table
 SET estimated_study_exit = 
   DATE_ADD(baseline_eylea_date, INTERVAL 378 DAY);
-
+  
 /*
--- study_exit (date of va measurement closest---but prior---to 
+-- study_exit_54 (date of va measurement closest---but prior---to 
 estimated_study_exit--akin to last observation carried forward)
 */
 
 UPDATE amd_synthetic_eylea_arm_study_table p
-SET study_exit = (
+SET p.study_exit_54 = (
   SELECT MAX(v.EncounterDate)
   FROM nvAMD_visual_acuity v
   WHERE p.PatientID = v.PatientID AND 
         p.EyeCode = v.EyeCode AND 
-        v.EncounterDate > p.baseline_eylea_date AND
+        v.EncounterDate >= p.baseline_eylea_date AND
         v.EncounterDate <= p.estimated_study_exit
   LIMIT 1
 );
 
 /*
--- study_exit_va (highest etdrs measurement taken on baseline_va_date)S)
+-- study_exit_va_54 (highest etdrs measurement taken on study_exit_date)
 */
 
 UPDATE amd_synthetic_eylea_arm_study_table s
-SET s.study_exit_va = (
-SELECT MAX(v.max_etdrs)
-FROM nvAMD_visual_acuity v
-WHERE s.PatientID = v.PatientID AND 
-      s.EyeCode = v.EyeCode AND
-      s.study_exit = v.EncounterDate
+SET s.study_exit_va_54 = (
+  SELECT MAX(v.max_etdrs)
+  FROM nvAMD_visual_acuity v
+  WHERE s.PatientID = v.PatientID AND 
+        s.EyeCode = v.EyeCode AND
+        s.study_exit_54 = v.EncounterDate
 );
+
+
+/*
+-- study_exit_va_58 (best recorded etdrs taken during weeks 50--58)
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table s
+SET s.study_exit_va_58 = (
+  SELECT MAX(v.max_etdrs)
+  FROM nvAMD_visual_acuity v
+  WHERE s.PatientID = v.PatientID AND 
+        s.EyeCode = v.EyeCode AND
+        DATEDIFF(v.EncounterDate, s.baseline_eylea_date) BETWEEN 350 AND 406
+);
+
+/*
+-- study_exit_58
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table s
+SET s.study_exit_58 = (
+  SELECT MIN(v.EncounterDate)
+  FROM nvAMD_visual_acuity v
+  WHERE s.PatientID = v.PatientID AND
+        s.EyeCode = v.EyeCode AND
+        s.study_exit_va_58 = v.max_etdrs AND
+        DATEDIFF(v.EncounterDate, s.baseline_eylea_date) BETWEEN 350 AND 406
+);
+
+/*
+-- study_exit
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table s
+SET s.study_exit =
+  CASE
+  WHEN study_exit_58 IS NULL THEN s.study_exit_54
+  ELSE study_exit_58
+  END;
+
+/*
+-- study_exit_va
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table s
+SET s.study_exit_va =
+  CASE
+  WHEN study_exit_va_58 IS NULL THEN s.study_exit_va_54
+  ELSE study_exit_va_58
+  END;
 
 /*
 --recent_eylea_injection
@@ -473,7 +528,7 @@ ON p.PatientID = s.PatientID AND
         s.IndicationDesc LIKE 'diabetic maculopathy%' OR
         s.IndicationDesc LIKE 'diabetic papillopathy' AND
        s.EncounterDate >= p.baseline_eylea_date AND
-       s.EncounterDate <= p.study_exit_va;
+       s.EncounterDate <= study_exit;
 
 /*
 -- uveitis_excl
@@ -580,7 +635,15 @@ SET missing_covariates_excl = 1
 WHERE gender IS NULL OR
       baseline_va IS NULL OR
       age_at_baseline IS NULL;
-      
+
+/*
+-- incomplete_followup_excl
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table
+SET incomplete_followup_excl = 1
+WHERE baseline_eylea_date >= '2017-12-01';
+
 /*
 eligibility (if all excl = 0)
 */
@@ -603,35 +666,8 @@ WHERE fellow_excl = 0 AND
       previous_vegf_excl = 0 AND
       switch_excl = 0 AND
       incomplete_loading_excl = 0 AND
-      missing_covariates_excl = 0;
-
-/*
--- Export to .csv
---Write actual code to export to .csv and when r code optimised convert to 
-importing directly from kale into R.
-*/
-
-SELECT *
-FROM amd_synthetic_eylea_arm_study_table
-WHERE eligibility = 1;
-
-/*
--- Export va measurements for those fufilinng abc crtieria to va_eligible_eylea_arm.csv
-*/
-
-SELECT v.patient_eye, 
-       v.EncounterDate, 
-       MAX(v.max_etdrs) AS ETDRS, 
-       DATEDIFF(v.EncounterDate, s.baseline_va_date) AS days, 
-       CEIL(DATEDIFF(v.EncounterDate, s.baseline_va_date) / 7) AS weeks 
-FROM amd_synthetic_eylea_arm_study_table s
-LEFT JOIN nvAMD_visual_acuity v 
-ON v.PatientID = s.PatientID AND
-   v.EyeCode = s.EyeCode
-WHERE s.eligibility = 1 AND
-      v.EncounterDate >= s.baseline_va_date AND
-      v.EncounterDate <= s.study_exit
-GROUP BY v.patient_eye, v.EncounterDate;
+      missing_covariates_excl = 0 AND
+      incomplete_followup_excl = 0;
 
 /*
 SCRIPT END
