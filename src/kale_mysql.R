@@ -2,7 +2,7 @@
 
 library(keyring)
 
-mysql <- DBI::dbConnect(RMySQL::MySQL(),
+kale <- DBI::dbConnect(RMySQL::MySQL(),
                         user = key_list("kale_mysql")[1, 2], 
                         password = key_get("kale_mysql", 
                                            key_list("kale_mysql")[1, 2]),
