@@ -1,0 +1,145 @@
+---
+title: "eylea_em"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+# setup
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+
+# configure connection to mysql
+source("src/kale_mysql.R")
+
+# source code to run primary analyses
+source("fnc/va_delta_glm.R")
+```
+
+# read_from_csv
+
+```{r}
+abc <- read_csv("data/abc_patient_details.csv",
+                col_types = cols(
+                  id = col_character(),
+                  age_at_baseline = col_integer(),
+                  baseline_etdrs = col_integer(),
+                  injection_count = col_integer(),
+                  drug_recency = col_integer(),
+                  study_exit_va = col_integer()
+                )) %>% 
+  rename(
+    age = age_at_baseline,
+    drug_load = injection_count) %>% 
+  # reorder
+  select(
+    id,
+    treatment, 
+    age, 
+    gender,
+    baseline_etdrs,
+    drug_load,
+    drug_recency,
+    study_exit_va) %>% 
+  # restrict to avastin arm
+  filter(treatment == "avastin")
+```
+
+# import_from_mysql
+
+```{sql connection = kale, output.var = "ehr"}
+SELECT patient_eye AS id,
+treatment,
+age_at_baseline AS age,
+gender,
+baseline_va AS baseline_etdrs,
+drug_load,
+drug_recency,
+study_exit_va
+FROM amd_synthetic_eylea_arm_study_table
+WHERE eligibility = 1;
+```
+
+```{r}
+ehr <- as.tibble(ehr)
+```
+
+# no_matching
+
+Note: all ABC eyes and all 31,151 Eylea eyes (with complete data)
+
+# exact_matching
+
+```{r}
+# source exact_matching code
+source("fnc/exact_matching.R")
+```
+
+```{r}
+# run exact_matching_algortihm
+em <- exact_matching(abc, ehr)
+```
+
+## intention_to_treat
+
+```{r}
+em <- em %>% 
+  va_delta_glm(formula = y ~ treatment,
+               weights = NULL)   # add post-randomised events for adjusted anaylses
+```
+
+## per protocol
+
+# psm
+
+```{r}
+# source psm code
+
+```
+
+
+## intention_to_treat
+
+## per protocol
+
+
+# iptw
+
+```{r}
+# source ipt code
+source("fnc/ipt.R")
+```
+
+
+```{r}
+# run ipt algorithm
+iptw <- ipt(abc, ehr)
+```
+
+```{r}
+# run primary analysis fucntion
+iptw <- iptw %>% 
+  va_delta_glm(formula = y ~
+                 treatment,
+               weights = iptw)
+```
+
+## intention_to_treat
+
+## per protocol
+
