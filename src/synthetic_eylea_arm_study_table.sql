@@ -30,6 +30,7 @@ CREATE INDEX idx_amd_synthetic_eylea_arm_study_table_pt ON amd_synthetic_eylea_a
 
 ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN patient_eye VARCHAR(255) DEFAULT NULL,
+  ADD COLUMN treatment VARCHAR(255) DEFAULT 'eylea',
   ADD COLUMN gender VARCHAR(255) DEFAULT NULL,
   ADD COLUMN baseline_eylea_date DATE DEFAULT NULL,
   ADD COLUMN baseline_va_date DATE DEFAULT NULL,
@@ -42,7 +43,7 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN study_exit DATE DEFAULT NULL, 
   ADD COLUMN study_exit_va INT(3) DEFAULT NULL,
   ADD COLUMN recent_eylea_injection DATE DEFAULT NULL,
-  ADD COLUMN days_between_injection_and_exit_va INT(3) DEFAULT NULL,
+  ADD COLUMN drug_recency INT(3) DEFAULT NULL,
   ADD COLUMN avastin_start_date DATE DEFAULT NULL,
   ADD COLUMN lucentis_start_date DATE DEFAULT NULL,
   ADD COLUMN affected_eyes INT(1) DEFAULT NULL,
@@ -50,7 +51,7 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN index_date DATE DEFAULT NULL,
   ADD COLUMN age_at_baseline INT(3) DEFAULT NULL,
   ADD COLUMN third_injection_date DATE DEFAULT NULL,
-  ADD COLUMN injection_count INT(3) DEFAULT NULL,
+  ADD COLUMN drug_load INT(3) DEFAULT NULL,
   
   -- ABC-trial elligibility
 
@@ -94,6 +95,10 @@ UPDATE amd_synthetic_eylea_arm_study_table s
 LEFT JOIN ETCPatientDetails p
 ON s.PatientID = p.PatientID
 SET s.gender = p.Gender;
+
+UPDATE amd_synthetic_eylea_arm_study_table
+SET gender = NULL
+WHERE gender = 'U';
 
 /*
 -- baseline_eylea_date (date of first Eylea injection)
@@ -238,11 +243,11 @@ SET s.recent_eylea_injection = (
 );
 
 /* 
--- days_between_injection_and_exit_va
+-- drug_recency
 */
 
 UPDATE amd_synthetic_eylea_arm_study_table
-SET days_between_injection_and_exit_va = 
+SET drug_recency = 
   DATEDIFF(study_exit, recent_eylea_injection);
 
 /*
@@ -381,11 +386,11 @@ SET third_injection_date = (
 );
 
 /*
--- injection_count (number of Eylea injections recieved during study period)
+-- drug_load (number of Eylea injections recieved during study period)
 */
 
 UPDATE amd_synthetic_eylea_arm_study_table p
-SET injection_count = (
+SET drug_load = (
   SELECT COUNT(DISTINCT i.EncounterDate)
   FROM nvAMD_injections i
   WHERE p.PatientID = i.PatientID AND 
@@ -645,7 +650,7 @@ SET incomplete_followup_excl = 1
 WHERE baseline_eylea_date >= '2017-12-01';
 
 /*
-eligibility (if all excl = 0)
+-- eligibility (if all excl = 0)
 */
 
 UPDATE amd_synthetic_eylea_arm_study_table
