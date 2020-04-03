@@ -1,42 +1,23 @@
----
-title: "2020_propensity_model_diagnostics"
-author: "Darren S Thomas"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-always_allow_html: yes
-output: github_document
----
+2020\_propensity\_model\_diagnostics
+================
+Darren S Thomas
+03 April, 2020
 
 # setup
 
-```{r setup, include=FALSE}
-# configure Rmd chunks
-knitr::opts_chunk$set(
-    echo = TRUE,      # output code chunks
-    message = FALSE,  # toggle off message output 
-    warning = FALSE)  # toggle off warning output
-
-# load frequently used packages
-library(tidyverse)
-
-# set default ggplot theme
-courier_bw <- theme_bw() +
-  theme(text = element_text(family = "Courier"),
-        legend.position = "bottom")
-
-theme_set(courier_bw)
-```
-
-```{r}
+``` r
 # source propensity model
 source("src/propensity_model.R")
 ```
 
-```{r}
+``` r
 # check model asusmptions
 performance::check_model(propensity_model)
 ```
 
-```{r}
+![](2020_propensity_model_diagnostics_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+``` r
 # preview equation as LaTeX formula
 equatiomatic::extract_eq(propensity_model,
                          use_coefs = TRUE,
@@ -45,10 +26,9 @@ equatiomatic::extract_eq(propensity_model,
                          operator_location = "start") %>% 
   equatiomatic::preview()
 # TO DO: AUTOMATIC SAVE OF IMAGE TO /FIGURES OR EXORT AS LATEX FORMULA.
-
 ```
 
-```{r}
+``` r
 # print augment() distributions
 abc.augmented <- broom::augment(propensity_model,
                                 data = abc.all,
@@ -58,7 +38,7 @@ abc.augmented <- broom::augment(propensity_model,
                           levels = c(1, 0)))
 ```
 
-```{r}
+``` r
 # plot as density distributions
 ggplot(abc.augmented, 
        aes(x = .fitted, fill = avastin)) +
@@ -73,8 +53,10 @@ scale_fill_manual(values = c("#FF6B6B", "#63E8DF"),
 scale_x_continuous(breaks = seq(0, 1, 0.1),
                    limits = c(0, 1))
 ```
-```
 
-```{r}
+![](2020_propensity_model_diagnostics_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+\`\`\`
+
+``` r
 # export to /figs
 ```
