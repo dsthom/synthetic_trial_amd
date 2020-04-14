@@ -36,12 +36,17 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN baseline_va_date DATE DEFAULT NULL,
   ADD COLUMN baseline_va INT(3) DEFAULT NULL,
   ADD COLUMN estimated_study_exit DATE DEFAULT NULL,
+  
   ADD COLUMN study_exit_54 DATE DEFAULT NULL,
   ADD COLUMN study_exit_va_54 INT(3) DEFAULT NULL,
-  ADD COLUMN study_exit_58 DATE DEFAULT NULL,
-  ADD COLUMN study_exit_va_58 INT(3) DEFAULT NULL,
+  ADD COLUMN study_exit_week_54 INT(2) DEFAULT NULL,
+  ADD COLUMN study_exit_lo DATE DEFAULT NULL,
+  ADD COLUMN study_exit_va_lo INT(3) DEFAULT NULL,
+  ADD COLUMN study_exit_week_lo INT(2) DEFAULT NULL,
   ADD COLUMN study_exit DATE DEFAULT NULL, 
   ADD COLUMN study_exit_va INT(3) DEFAULT NULL,
+  ADD COLUMN study_exit_week INT(2) DEFAULT NULL,
+  
   ADD COLUMN recent_eylea_injection DATE DEFAULT NULL,
   ADD COLUMN drug_recency INT(3) DEFAULT NULL,
   ADD COLUMN avastin_start_date DATE DEFAULT NULL,
@@ -70,6 +75,7 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN intraocular_surg_excl INT(1) DEFAULT 0,
   
   -- emulated-trial elligibility
+  
   ADD COLUMN previous_vegf_excl INT(1) DEFAULT 0,
   ADD COLUMN switch_excl INT(1) DEFAULT 0,
   ADD COLUMN incomplete_loading_excl INT(1) DEFAULT 0,
@@ -148,14 +154,45 @@ WHERE s.PatientID = v.PatientID AND
 UPDATE amd_synthetic_eylea_arm_study_table
 SET estimated_study_exit = 
   DATE_ADD(baseline_eylea_date, INTERVAL 378 DAY);
-  
+
 /*
--- study_exit_54 (date of va measurement closest---but prior---to 
-estimated_study_exit--akin to last observation carried forward)
+-- study_exit_54 (date of va measurement closest to week 50, ranging from weeks 50--58)
 */
 
 UPDATE amd_synthetic_eylea_arm_study_table p
 SET p.study_exit_54 = (
+ SELECT MIN(v.EncounterDate) -- before week 54 trumps afterward
+ FROM nvAMD_visual_acuity v
+ WHERE p.PatientID = v.PatientID AND
+       p.EyeCode = v.EyeCode AND
+       FLOOR(DATEDIFF(v.EncounterDate, p.baseline_eylea_date) / 7) BETWEEN 50 AND 58
+ ORDER BY SQRT(POWER(DATEDIFF(v.EncounterDate, estimated_study_exit), 2)) 
+ LIMIT 1
+);
+
+/*
+-- study_exit_va_54 
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table s
+SET s.study_exit_va_54 = (
+  SELECT MAX(v.max_etdrs)
+  FROM nvAMD_visual_acuity v
+  WHERE s.PatientID = v.PatientID AND 
+        s.EyeCode = v.EyeCode AND
+        v.EncounterDate = s.study_exit_54
+);
+
+-- study_exit_week_54 
+
+UPDATE amd_synthetic_eylea_arm_study_table
+SET study_exit_week_54 = 
+  FLOOR(DATEDIFF(study_exit_54, baseline_eylea_date) / 7);
+
+-- study_exit_lo (IF study_exit_54 IS NULL THEN LOCF)
+
+UPDATE amd_synthetic_eylea_arm_study_table p
+SET p.study_exit_lo = (
   SELECT MAX(v.EncounterDate)
   FROM nvAMD_visual_acuity v
   WHERE p.PatientID = v.PatientID AND 
@@ -165,67 +202,54 @@ SET p.study_exit_54 = (
   LIMIT 1
 );
 
-/*
--- study_exit_va_54 (highest etdrs measurement taken on study_exit_date)
-*/
+-- study_exit_va_lo
 
 UPDATE amd_synthetic_eylea_arm_study_table s
-SET s.study_exit_va_54 = (
+SET s.study_exit_va_lo = (
   SELECT MAX(v.max_etdrs)
   FROM nvAMD_visual_acuity v
   WHERE s.PatientID = v.PatientID AND 
         s.EyeCode = v.EyeCode AND
-        s.study_exit_54 = v.EncounterDate
+        s.study_exit_lo = v.EncounterDate
 );
 
+-- study_exit_week_lo
+
+UPDATE amd_synthetic_eylea_arm_study_table
+SET study_exit_week_lo = 
+  FLOOR(DATEDIFF(study_exit_lo, baseline_eylea_date) / 7);
 
 /*
--- study_exit_va_58 (best recorded etdrs taken during weeks 50--58)
+-- study_exit (IF study_exit_va_54 IS NOT NULL THEN study_exit_va_54 ELSE study_exit_va_locf
 */
 
-UPDATE amd_synthetic_eylea_arm_study_table s
-SET s.study_exit_va_58 = (
-  SELECT MAX(v.max_etdrs)
-  FROM nvAMD_visual_acuity v
-  WHERE s.PatientID = v.PatientID AND 
-        s.EyeCode = v.EyeCode AND
-        DATEDIFF(v.EncounterDate, s.baseline_eylea_date) BETWEEN 350 AND 406
-);
-
-/*
--- study_exit_58
-*/
-
-UPDATE amd_synthetic_eylea_arm_study_table s
-SET s.study_exit_58 = (
-  SELECT MIN(v.EncounterDate)
-  FROM nvAMD_visual_acuity v
-  WHERE s.PatientID = v.PatientID AND
-        s.EyeCode = v.EyeCode AND
-        s.study_exit_va_58 = v.max_etdrs AND
-        DATEDIFF(v.EncounterDate, s.baseline_eylea_date) BETWEEN 350 AND 406
-);
-
-/*
--- study_exit
-*/
-
-UPDATE amd_synthetic_eylea_arm_study_table s
-SET s.study_exit =
+UPDATE amd_synthetic_eylea_arm_study_table
+SET study_exit =
   CASE
-  WHEN study_exit_58 IS NULL THEN s.study_exit_54
-  ELSE study_exit_58
+  WHEN study_exit_54 IS NULL THEN study_exit_lo
+  ELSE study_exit_54
   END;
 
 /*
 -- study_exit_va
 */
 
-UPDATE amd_synthetic_eylea_arm_study_table s
-SET s.study_exit_va =
+UPDATE amd_synthetic_eylea_arm_study_table
+SET study_exit_va =
   CASE
-  WHEN study_exit_va_58 IS NULL THEN s.study_exit_va_54
-  ELSE study_exit_va_58
+  WHEN study_exit_va_54 IS NULL THEN study_exit_va_lo
+  ELSE study_exit_va_54
+  END;
+
+/*
+-- study_exit_week
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table
+SET study_exit_week =
+  CASE
+  WHEN study_exit_week_54 IS NULL THEN study_exit_week_lo
+  ELSE study_exit_week_54
   END;
 
 /*
@@ -238,7 +262,7 @@ SET s.recent_eylea_injection = (
   FROM nvAMD_injections i
   WHERE s.PatientID = i.PatientID AND
         s.EyeCode = i.EyeCode AND
-        i.EncounterDate <= study_exit AND
+        i.EncounterDate < study_exit AND
         i.InjectedDrugDesc = 'Eylea 2 mg/0.05ml (aflibercept)'
 );
 
@@ -248,7 +272,8 @@ SET s.recent_eylea_injection = (
 
 UPDATE amd_synthetic_eylea_arm_study_table
 SET drug_recency = 
-  DATEDIFF(study_exit, recent_eylea_injection);
+  DATEDIFF(study_exit, recent_eylea_injection)
+WHERE DATEDIFF(study_exit, recent_eylea_injection) > 0;
 
 /*
 -- avastin_start_date
@@ -395,8 +420,8 @@ SET drug_load = (
   FROM nvAMD_injections i
   WHERE p.PatientID = i.PatientID AND 
         p.EyeCode = i.EyeCode AND 
-        i.EncounterDate >= p.baseline_eylea_date AND 
-        i.EncounterDate <= p.study_exit AND
+        i.EncounterDate > p.third_injection_date AND 
+        i.EncounterDate < p.study_exit AND  -- inejctions given on date of study_exit_va unlikely to have an impact on va
         i.InjectedDrugDesc = 'Eylea 2 mg/0.05ml (aflibercept)'
 );
 
