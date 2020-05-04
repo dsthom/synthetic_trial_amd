@@ -93,4 +93,8 @@ exact_matching <- function(abc, ehr){
            drug_load,
            drug_recency,
            study_exit_va)
+  # PSM
 }
+
+# check out fuzzyjoin::fuzzy_left_join / fuzzyjoin::difference_left_join() for inexact joins.
+# https://github.com/dgrtwo/fuzzyjoin
