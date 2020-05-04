@@ -1,0 +1,51 @@
+---
+title: "iptw_triangulation"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+# setup
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(tidymodels)
+library(tidyverse)
+library(patchwork)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+
+# configure connection to mysql
+source("src/kale_mysql.R")
+```
+
+We know that Avastin was prescribed PRN during every 6 weeks the ABC trial, but how frequently during routine care?
+
+128 of 2,056 eyes recieving 1.25 mg Avastin were eligible.
+
+```{sql connection = kale, output.var = "eylea.injections"}
+SELECT i.patient_eye, 
+       i.EncounterDate AS encounter_date,
+       i.InjectedDrugDesc AS injected_drug_desc,
+       cumulative_injection_count,
+       days_since_last_injection
+FROM nvAMD_injections i
+INNER JOIN amd_synthetic_avastin_arm_study_table s
+ON i.patient_eye = s.patient_eye
+WHERE s.eligibility = 1 AND
+      i.EncounterDate > s.third_injection_date AND -- maintenance injections only
+      i.EncounterDate < s.study_exit
+; 
+```
+
