@@ -1,0 +1,95 @@
+---
+title: "pragmatic_trial_avastin_vs_eylea"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+# Setup
+
+Script to retrieve elligible eyes recieving Eylea (2 mg) or Avastin (1.25 mg). Requires `src/synthetic_avastin_arm_study_table.sql` and `src/synthetic_avastin_arm_study_table.sql` to be run beforehand.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+```
+
+Load frequently used packages.
+
+```{r}
+library(tidyverse)
+```
+
+Set new default ggplot theme.
+
+```{r}
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+```
+
+# Import from kale
+
+Setup mysql connection.
+
+```{r}
+kale <- DBI::dbConnect(RMySQL::MySQL(),
+                        user = "admin", 
+                        password = "password",
+                        dbname = "NOVA6",
+                        host = "127.0.0.1",
+                        port = 9999)
+```
+
+```{sql connection = kale, output.var = "ehr.avastin"}
+SELECT patient_eye,
+       age_at_baseline,
+       gender,
+       baseline_va,
+       study_exit_va,
+       injection_count AS drug_load,
+       days_between_injection_and_exit_va AS drug_recency
+FROM amd_synthetic_avastin_arm_study_table
+WHERE eligibility = 1;
+
+```
+
+```{sql connection = kale, output.var = "ehr.eylea"}
+SELECT patient_eye,
+       age_at_baseline,
+       gender,
+       baseline_va,
+       study_exit_va,
+       injection_count AS drug_load,
+       days_between_injection_and_exit_va AS drug_recency
+FROM amd_synthetic_eylea_arm_study_table
+WHERE eligibility = 1;
+```
+
+```{r}
+# add treatment column for avastin
+ehr.avastin <- ehr.avastin %>%
+  mutate(treatment = 'avastin')
+
+# add treatment column for eylea
+ehr.eylea <- ehr.eylea %>% 
+  mutate(treatment = 'eylea')
+
+# update negative ETDRS to 0
+ehr.avastin$study_exit_va[ehr.avastin$study_exit_va < 0] <- 0
+ehr.eylea$study_exit_va[ehr.eylea$study_exit_va < 0] <- 0
+
+# combine into a single table 
+avastin_vs_eylea <- bind_rows(ehr.avastin, ehr.eylea) %>% 
+# add outcome variable
+  mutate(
+    va_change = study_exit_va - baseline_va,
+    outcome = if_else(va_change >= 15, 1, 0)) %>% 
+# export to .csv
+  write_csv("data/sample_prgmatic_data")
+```
+
