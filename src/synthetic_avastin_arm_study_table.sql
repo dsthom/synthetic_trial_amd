@@ -3,10 +3,12 @@
 /* 
 Script to create & populate the study table: amd_synthetic_avastin_arm_study_table having run 
 amd_irf_srf_large_tables.sql
-
-We select only eyes that recieved 1.25 mg Avastin in allignment with ABC trial.
 */ 
  
+/*  
+-- create table to be used for this study only
+*/
+
 /*  
 -- create table to be used for this study only
 */
@@ -19,7 +21,7 @@ CREATE TABLE amd_synthetic_avastin_arm_study_table AS
   LEFT JOIN nvAMD_injections i
   ON si.PatientID = i.PatientID AND
      si.EyeCode = i.EyeCode
-  WHERE i.InjectedDrugDesc LIKE "Avastin 1.25 mg/0.05 ml"
+  WHERE i.InjectedDrugDesc IN ("Avastin 1.25 mg/0.05 ml")
   GROUP BY PatientID, EyeCode;
   
 CREATE INDEX idx_amd_synthetic_avastin_arm_study_table_pt_e ON amd_synthetic_avastin_arm_study_table (`PatientID`, `EyeCode`);
@@ -32,28 +34,34 @@ CREATE INDEX idx_amd_synthetic_avastin_arm_study_table_pt ON amd_synthetic_avast
 
 ALTER TABLE amd_synthetic_avastin_arm_study_table
   ADD COLUMN patient_eye VARCHAR(255) DEFAULT NULL,
+  ADD COLUMN treatment VARCHAR(255) DEFAULT 'avastin',
   ADD COLUMN gender VARCHAR(255) DEFAULT NULL,
   ADD COLUMN baseline_avastin_date DATE DEFAULT NULL,
   ADD COLUMN baseline_va_date DATE DEFAULT NULL,
   ADD COLUMN baseline_va INT(3) DEFAULT NULL,
   ADD COLUMN estimated_study_exit DATE DEFAULT NULL,
+  
   ADD COLUMN study_exit_54 DATE DEFAULT NULL,
   ADD COLUMN study_exit_va_54 INT(3) DEFAULT NULL,
-  ADD COLUMN study_exit_58 DATE DEFAULT NULL,
-  ADD COLUMN study_exit_va_58 INT(3) DEFAULT NULL,
+  ADD COLUMN study_exit_week_54 INT(2) DEFAULT NULL,
+  ADD COLUMN study_exit_lo DATE DEFAULT NULL,
+  ADD COLUMN study_exit_va_lo INT(3) DEFAULT NULL,
+  ADD COLUMN study_exit_week_lo INT(2) DEFAULT NULL,
   ADD COLUMN study_exit DATE DEFAULT NULL, 
   ADD COLUMN study_exit_va INT(3) DEFAULT NULL,
+  ADD COLUMN study_exit_week INT(2) DEFAULT NULL,
+  
   ADD COLUMN recent_avastin_injection DATE DEFAULT NULL,
-  ADD COLUMN days_between_injection_and_exit_va INT(3) DEFAULT NULL,
-  ADD COLUMN avastin_higher_dose_start_date DATE DEFAULT NULL,
-  ADD COLUMN eylea_start_date DATE DEFAULT NULL,
+  ADD COLUMN drug_recency INT(3) DEFAULT NULL,
   ADD COLUMN lucentis_start_date DATE DEFAULT NULL,
+  ADD COLUMN eylea_start_date DATE DEFAULT NULL,
+  ADD COLUMN higher_avastin_start_date DATE DEFAULT NULL,
   ADD COLUMN affected_eyes INT(1) DEFAULT NULL,
   ADD COLUMN index_eye INT(1) DEFAULT NULL,
   ADD COLUMN index_date DATE DEFAULT NULL,
   ADD COLUMN age_at_baseline INT(3) DEFAULT NULL,
   ADD COLUMN third_injection_date DATE DEFAULT NULL,
-  ADD COLUMN injection_count INT(3) DEFAULT NULL,
+  ADD COLUMN drug_load INT(3) DEFAULT NULL,
   
   -- ABC-trial elligibility
 
@@ -72,6 +80,7 @@ ALTER TABLE amd_synthetic_avastin_arm_study_table
   ADD COLUMN intraocular_surg_excl INT(1) DEFAULT 0,
   
   -- emulated-trial elligibility
+  
   ADD COLUMN previous_vegf_excl INT(1) DEFAULT 0,
   ADD COLUMN switch_excl INT(1) DEFAULT 0,
   ADD COLUMN incomplete_loading_excl INT(1) DEFAULT 0,
@@ -98,8 +107,12 @@ LEFT JOIN ETCPatientDetails p
 ON s.PatientID = p.PatientID
 SET s.gender = p.Gender;
 
+UPDATE amd_synthetic_avastin_arm_study_table
+SET gender = NULL
+WHERE gender = 'U';
+
 /*
--- baseline_avastin_date (date of first avastin injection)
+-- baseline_avastin_date (date of first Lucentis injection)
 */
 
 UPDATE amd_synthetic_avastin_arm_study_table p
@@ -108,7 +121,7 @@ SELECT MIN(i.EncounterDate)
 FROM nvAMD_injections i
 WHERE p.PatientID = i.PatientID AND 
       p.EyeCode = i.EyeCode AND
-      i.InjectedDrugDesc = "Avastin 1.25 mg/0.05 ml"
+      i.InjectedDrugDesc IN ("Avastin 1.25 mg/0.05 ml")
 );
 
 /*
@@ -146,14 +159,45 @@ WHERE s.PatientID = v.PatientID AND
 UPDATE amd_synthetic_avastin_arm_study_table
 SET estimated_study_exit = 
   DATE_ADD(baseline_avastin_date, INTERVAL 378 DAY);
-  
+
 /*
--- study_exit_54 (date of va measurement closest---but prior---to 
-estimated_study_exit--akin to last observation carried forward)
+-- study_exit_54 (date of va measurement closest to week 50, ranging from weeks 50--58)
 */
 
 UPDATE amd_synthetic_avastin_arm_study_table p
 SET p.study_exit_54 = (
+ SELECT MIN(v.EncounterDate) -- before week 54 trumps afterward
+ FROM nvAMD_visual_acuity v
+ WHERE p.PatientID = v.PatientID AND
+       p.EyeCode = v.EyeCode AND
+       FLOOR(DATEDIFF(v.EncounterDate, p.baseline_avastin_date) / 7) BETWEEN 50 AND 58
+ ORDER BY SQRT(POWER(DATEDIFF(v.EncounterDate, estimated_study_exit), 2)) 
+ LIMIT 1
+);
+
+/*
+-- study_exit_va_54 
+*/
+
+UPDATE amd_synthetic_avastin_arm_study_table s
+SET s.study_exit_va_54 = (
+  SELECT MAX(v.max_etdrs)
+  FROM nvAMD_visual_acuity v
+  WHERE s.PatientID = v.PatientID AND 
+        s.EyeCode = v.EyeCode AND
+        v.EncounterDate = s.study_exit_54
+);
+
+-- study_exit_week_54 
+
+UPDATE amd_synthetic_avastin_arm_study_table
+SET study_exit_week_54 = 
+  FLOOR(DATEDIFF(study_exit_54, baseline_avastin_date) / 7);
+
+-- study_exit_lo (IF study_exit_54 IS NULL THEN LOCF)
+
+UPDATE amd_synthetic_avastin_arm_study_table p
+SET p.study_exit_lo = (
   SELECT MAX(v.EncounterDate)
   FROM nvAMD_visual_acuity v
   WHERE p.PatientID = v.PatientID AND 
@@ -163,67 +207,54 @@ SET p.study_exit_54 = (
   LIMIT 1
 );
 
-/*
--- study_exit_va_54 (highest etdrs measurement taken on study_exit_date)
-*/
+-- study_exit_va_lo
 
 UPDATE amd_synthetic_avastin_arm_study_table s
-SET s.study_exit_va_54 = (
+SET s.study_exit_va_lo = (
   SELECT MAX(v.max_etdrs)
   FROM nvAMD_visual_acuity v
   WHERE s.PatientID = v.PatientID AND 
         s.EyeCode = v.EyeCode AND
-        s.study_exit_54 = v.EncounterDate
+        s.study_exit_lo = v.EncounterDate
 );
 
+-- study_exit_week_lo
+
+UPDATE amd_synthetic_avastin_arm_study_table
+SET study_exit_week_lo = 
+  FLOOR(DATEDIFF(study_exit_lo, baseline_avastin_date) / 7);
 
 /*
--- study_exit_va_58 (best recorded etdrs taken during weeks 50--58)
+-- study_exit (IF study_exit_va_54 IS NOT NULL THEN study_exit_va_54 ELSE study_exit_va_locf
 */
 
-UPDATE amd_synthetic_avastin_arm_study_table s
-SET s.study_exit_va_58 = (
-  SELECT MAX(v.max_etdrs)
-  FROM nvAMD_visual_acuity v
-  WHERE s.PatientID = v.PatientID AND 
-        s.EyeCode = v.EyeCode AND
-        DATEDIFF(v.EncounterDate, s.baseline_avastin_date) BETWEEN 350 AND 406
-);
-
-/*
--- study_exit_58
-*/
-
-UPDATE amd_synthetic_avastin_arm_study_table s
-SET s.study_exit_58 = (
-  SELECT MIN(v.EncounterDate)
-  FROM nvAMD_visual_acuity v
-  WHERE s.PatientID = v.PatientID AND
-        s.EyeCode = v.EyeCode AND
-        s.study_exit_va_58 = v.max_etdrs AND
-        DATEDIFF(v.EncounterDate, s.baseline_avastin_date) BETWEEN 350 AND 406
-);
-
-/*
--- study_exit
-*/
-
-UPDATE amd_synthetic_avastin_arm_study_table s
-SET s.study_exit =
+UPDATE amd_synthetic_avastin_arm_study_table
+SET study_exit =
   CASE
-  WHEN study_exit_58 IS NULL THEN s.study_exit_54
-  ELSE study_exit_58
+  WHEN study_exit_54 IS NULL THEN study_exit_lo
+  ELSE study_exit_54
   END;
 
 /*
 -- study_exit_va
 */
 
-UPDATE amd_synthetic_avastin_arm_study_table s
-SET s.study_exit_va =
+UPDATE amd_synthetic_avastin_arm_study_table
+SET study_exit_va =
   CASE
-  WHEN study_exit_va_58 IS NULL THEN s.study_exit_va_54
-  ELSE study_exit_va_58
+  WHEN study_exit_va_54 IS NULL THEN study_exit_va_lo
+  ELSE study_exit_va_54
+  END;
+
+/*
+-- study_exit_week
+*/
+
+UPDATE amd_synthetic_avastin_arm_study_table
+SET study_exit_week =
+  CASE
+  WHEN study_exit_week_54 IS NULL THEN study_exit_week_lo
+  ELSE study_exit_week_54
   END;
 
 /*
@@ -236,31 +267,32 @@ SET s.recent_avastin_injection = (
   FROM nvAMD_injections i
   WHERE s.PatientID = i.PatientID AND
         s.EyeCode = i.EyeCode AND
-        i.EncounterDate <= study_exit AND
-        i.InjectedDrugDesc = "Avastin 1.25 mg/0.05 ml"
+        i.EncounterDate < study_exit AND
+        i.InjectedDrugDesc IN ("Avastin 1.25 mg/0.05 ml")
 );
 
 /* 
--- days_between_injection_and_exit_va
+-- drug_recency
 */
 
 UPDATE amd_synthetic_avastin_arm_study_table
-SET days_between_injection_and_exit_va = 
-  DATEDIFF(study_exit, recent_avastin_injection);
+SET drug_recency = 
+  DATEDIFF(study_exit, recent_avastin_injection)
+WHERE DATEDIFF(study_exit, recent_avastin_injection) > 0;
 
 /*
--- avastin_higher_dose_start_date
+-- lucentis_start_date
 */
 
 UPDATE amd_synthetic_avastin_arm_study_table p
-SET p.avastin_higher_dose_start_date = (
+SET p.lucentis_start_date = (
 SELECT MIN(i.EncounterDate)
 FROM nvAMD_injections i
 WHERE p.PatientID = i.PatientID AND 
       p.EyeCode = i.EyeCode AND 
       i.AntiVEGFInjection = 1 AND
-      i.InjectedDrugDesc IN ("Avastin 2 mg/0.08 ml", 
-                             "Avastin 2.5 mg/0.10 ml")
+      i.InjectedDrugDesc IN ("Lucentis 0.3 mg", 
+                             "Lucentis 0.5 mg")
 ORDER BY i.EncounterDate 
 LIMIT 1
 );
@@ -274,33 +306,33 @@ SET p.eylea_start_date = (
 SELECT MIN(i.EncounterDate)
 FROM nvAMD_injections i
 WHERE p.PatientID = i.PatientID AND 
-      p.EyeCode = i.EyeCode AND 
-      i.AntiVEGFInjection = 1 AND
-      i.InjectedDrugDesc LIKE "Eylea 2 mg/0.05ml (aflibercept)"
+      p.EyeCode = i.EyeCode AND
+      i.AntiVEGFInjection = 1 AND 
+      i.InjectedDrugDesc = '%Eylea%'
 ORDER BY i.EncounterDate 
 LIMIT 1
 );
 
 /*
--- lucentis_start_date
+-- higher_avastin_start_date
 */
 
 UPDATE amd_synthetic_avastin_arm_study_table p
-SET p.lucentis_start_date = (
+SET p.eylea_start_date = (
 SELECT MIN(i.EncounterDate)
 FROM nvAMD_injections i
 WHERE p.PatientID = i.PatientID AND 
       p.EyeCode = i.EyeCode AND
       i.AntiVEGFInjection = 1 AND 
-      i.InjectedDrugDesc IN ("Lucentis 0.3 mg", 
-                             "Lucentis 0.5 mg", 
-                             "Clinical-trial drug (Avastin or Lucentis)")
+      i.InjectedDrugDesc IN("Avastin 2 mg/0.08 ml", 
+                            "Avastin 2.5 mg/0.10 ml")
 ORDER BY i.EncounterDate 
 LIMIT 1
 );
+                               
 
 /*
--- affected_eyes (number of eyes with surgery indications for AMD that were treated with Avastin)
+-- affected_eyes (number of eyes with surgery indications for AMD that were treated with Eylea)
 */
 
 UPDATE amd_synthetic_avastin_arm_study_table p1
@@ -399,18 +431,18 @@ SET third_injection_date = (
 );
 
 /*
--- injection_count (number of avastin injections recieved during study period)
+-- drug_load (number of Avastin injections recieved during study period)
 */
 
 UPDATE amd_synthetic_avastin_arm_study_table p
-SET injection_count = (
+SET drug_load = (
   SELECT COUNT(DISTINCT i.EncounterDate)
   FROM nvAMD_injections i
   WHERE p.PatientID = i.PatientID AND 
         p.EyeCode = i.EyeCode AND 
-        i.EncounterDate >= p.baseline_avastin_date AND 
-        i.EncounterDate <= p.study_exit AND
-        i.InjectedDrugDesc = "Avastin 1.25 mg/0.05 ml"
+        i.EncounterDate > p.third_injection_date AND 
+        i.EncounterDate < p.study_exit AND  -- inejctions given on date of study_exit_va unlikely to have an impact on va
+        i.InjectedDrugDesc IN ("Avastin 1.25 mg/0.05 ml")
 );
 
 /*
@@ -477,6 +509,8 @@ LEFT JOIN ETCInjections i
   SET p.clinical_trial_excl = 1
   WHERE i.InjectedDrugDesc LIKE '%Macugen%' OR
         i.InjectedDrugDesc LIKE '%Lucentis%' OR
+        i.InjectedDrugDesc LIKE '%Eylea%' OR
+        i.InjectedDrugDesc LIKE "Clinical-trial drug (Avastin or Lucentis)" OR
         i.InjectedDrugDesc IN('HARRIER trial drug',
                               'LEAVO trial drug') AND
         i.EncounterDate <= p.baseline_avastin_date;
@@ -623,9 +657,8 @@ EMULATED TRIAL ELIGIBLITY
 
 UPDATE amd_synthetic_avastin_arm_study_table
 SET previous_vegf_excl = 1
-  WHERE avastin_higher_dose_start_date <= baseline_avastin_date OR
-        eylea_start_date <= baseline_avastin_date OR
-        lucentis_start_date <= baseline_avastin_date;
+  WHERE lucentis_start_date <= baseline_avastin_date OR
+        eylea_start_date <= baseline_avastin_date;
 
 /*
 -- switch_excl
@@ -633,9 +666,9 @@ SET previous_vegf_excl = 1
 
 UPDATE amd_synthetic_avastin_arm_study_table
 SET switch_excl = 1 
-  WHERE avastin_higher_dose_start_date >= baseline_avastin_date AND avastin_higher_dose_start_date < study_exit OR
+  WHERE lucentis_start_date >= baseline_avastin_date AND lucentis_start_date < study_exit OR
         eylea_start_date >= baseline_avastin_date AND eylea_start_date < study_exit OR
-        lucentis_start_date >= baseline_avastin_date AND lucentis_start_date < study_exit;
+        higher_avastin_start_date >= baseline_avastin_date AND higher_avastin_start_date < study_exit;
 
 /*
 -- incomplete_loading_excl
@@ -664,7 +697,7 @@ SET incomplete_followup_excl = 1
 WHERE baseline_avastin_date >= '2017-12-01';
 
 /*
-eligibility (if all excl = 0)
+-- eligibility (if all excl = 0)
 */
 
 UPDATE amd_synthetic_avastin_arm_study_table
@@ -687,7 +720,3 @@ WHERE fellow_excl = 0 AND
       incomplete_loading_excl = 0 AND
       missing_covariates_excl = 0 AND
       incomplete_followup_excl = 0;
-
-/*
-SCRIPT END
-*/
