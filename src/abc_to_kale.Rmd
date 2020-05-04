@@ -63,8 +63,6 @@ abc.acuity  <- abc.acuity  %>%
   arrange(studynumber, week) %>% 
   # rename studynumber to snake_case 
   rename(id = studynumber) %>% 
-  # filter for avastin arm
-  filter(treatment == "avastin") %>%
   # select columns
   select(id, treatment, week, etdrs)
 ```
@@ -155,9 +153,7 @@ abc.patient.details <- abc.patient.details %>%
     injection_count,
     gender,
     age_at_baseline,
-    baseline_etdrs) %>% 
-  # filter for Avastin arm
-  filter(treatment == "avastin")
+    baseline_etdrs)
 ```
 
 Export to kale.
