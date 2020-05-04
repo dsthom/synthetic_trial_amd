@@ -15,6 +15,7 @@ knitr::opts_chunk$set(
     warning = FALSE)  # toggle off warning output
 
 # load frequently used packages
+library(tidymodels)
 library(tidyverse)
 
 # set default ggplot theme
@@ -27,8 +28,11 @@ theme_set(courier_bw)
 # configure connection to mysql
 source("src/kale_mysql.R")
 
-# source code to run primary analyses
-source("fnc/va_delta_glm.R")
+# source code to pre-process, run, and post-process glm (for em + psm)
+source("fnc/va_glm.R")
+
+# source code to pre-process, run, and post-process weighted glm (for ipwt)
+source("fnc/va_weighted_glm.R")
 ```
 
 # read_from_csv
@@ -81,7 +85,19 @@ ehr <- as.tibble(ehr)
 
 # no_matching
 
-Note: all ABC eyes and all 31,151 Eylea eyes (with complete data)
+```{r}
+# combine avastin (n 65) and eylea (n 4,471) arms
+negative.control <- bind_rows(abc, ehr)
+```
+
+## intention_to_treat
+
+```{r}
+negative.control <- negative.control %>% 
+  va_glm()
+```
+
+## per protocol
 
 # exact_matching
 
@@ -99,8 +115,7 @@ em <- exact_matching(abc, ehr)
 
 ```{r}
 em <- em %>% 
-  va_delta_glm(formula = y ~ treatment,
-               weights = NULL)   # add post-randomised events for adjusted anaylses
+  va_glm()
 ```
 
 ## per protocol
@@ -109,11 +124,71 @@ em <- em %>%
 
 ```{r}
 # source psm code
+source("fnc/propensity_score_matching.R")
+```
 
+## single_iteration
+
+```{r}
+zedd <- propensity_score_matching(
+  trial_arm  = abc,
+  synthetic_arm = ehr,
+  iterations = 1,
+  caliper_sd = 0.1
+)
+```
+
+```{r}
+# cheat solution while propensity_score_matching fnc optimised
+psm <- read_csv("data/psm_first_iteration.csv")
+```
+
+```{r}
+xyz <- psm %>% 
+  va_glm()
 ```
 
 
-## intention_to_treat
+## multiple_iterations
+
+```{r}
+# preprocess data
+trial.list.column <- propensity_score_matching(
+  trial = abc, 
+  iterations = 50)
+```
+
+```{r}
+## calculate propensity_score width of 0.1 standard deviation
+  caliper_ps <- trial.list.column %>% 
+    unnest() %>% 
+    ungroup() %>% 
+    filter(iteration == 1)
+  
+  caliper_ps <- (sd(caliper_ps$propensity_score) * 0.1)  ###!!! sd / 10 == 0.1 SD?
+```
+
+```{r}
+# create empty vector to supply to use as a match counter
+empty.vector <- vector(mode = "character") ###!!!
+
+# apply fuzzy_left_join_without_replacement() with map()
+julio <- trial.list.column %>% 
+  mutate(
+    match = map( 
+    .x = data,
+    ~ fuzzy_left_join_without_replacement(
+      trial.list.column = .x,
+      synthetic = ehr,
+      caliper = caliper_ps
+    )
+  ))
+```
+
+```{r}
+  # unnest at the end(), ungroub(), group_by(iteration), nest()
+```
+
 
 ## per protocol
 
@@ -122,21 +197,19 @@ em <- em %>%
 
 ```{r}
 # source ipt code
-source("fnc/ipt.R")
+source("fnc/inverse_probability_treatment.R")
 ```
 
 
 ```{r}
 # run ipt algorithm
-iptw <- ipt(abc, ehr)
+iptw <- inverse_probability_treatment(abc, ehr)
 ```
 
 ```{r}
 # run primary analysis fucntion
 iptw <- iptw %>% 
-  va_delta_glm(formula = y ~
-                 treatment,
-               weights = iptw)
+  va_weighted_glm() ###!!!  r unify with va_glm.R
 ```
 
 ## intention_to_treat
