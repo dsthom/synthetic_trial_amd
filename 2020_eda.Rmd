@@ -1,0 +1,166 @@
+---
+title: "2020_eda"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+# setup
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(tidymodels)
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+
+# configure connection to mysql
+source("src/kale_mysql.R")
+```
+
+# read_from_csv
+
+```{r}
+abc <- read_csv("data/abc_patient_details.csv",
+                col_types = cols(
+                  id = col_character(),
+                  age_at_baseline = col_integer(),
+                  baseline_etdrs = col_integer(),
+                  injection_count = col_integer(),
+                  drug_recency = col_integer(),
+                  study_exit_va = col_integer()
+                )) %>% 
+  rename(
+    age = age_at_baseline,
+    drug_load = injection_count) %>% 
+  # reorder
+  select(
+    id,
+    treatment, 
+    age, 
+    gender,
+    baseline_etdrs,
+    drug_load,
+    drug_recency,
+    study_exit_va) %>% 
+  # restrict to avastin arm
+  filter(treatment == "avastin")
+```
+
+# import_from_mysql
+
+```{sql connection = kale, output.var = "ehr"}
+SELECT patient_eye AS id,
+treatment,
+age_at_baseline AS age,
+gender,
+baseline_va AS baseline_etdrs,
+drug_load,
+drug_recency,
+study_exit_va,
+study_exit_week
+FROM amd_synthetic_eylea_arm_study_table
+WHERE eligibility = 1;
+```
+
+```{r}
+ehr <- as.tibble(ehr)
+```
+
+# eda
+
+```{r}
+# update negative integers to 0
+ehr$study_exit_va[ehr$study_exit_va < 0] <- 0
+```
+
+```{r}
+ehr %>% 
+  ggplot(aes(x = study_exit_week)) +
+  geom_histogram(
+    binwidth = 1,
+    fill = "#10CDD3") +
+  scale_x_continuous(breaks = seq(0, 58, 2)) +
+  labs(title = "Week of exit for 4,171 eligible eyes",
+       x = "Week",
+       y = "Count")
+```
+
+```{r}
+ehr %>% 
+  group_by(drug_load) %>% 
+  count() %>% 
+  ggplot(aes(x = factor(drug_load), y = n)) +
+  geom_bar(
+    stat = "identity",
+    fill = "#10CDD3") +
+  labs(title = "Maintenance injections recieved by 4,171 elligible eyes")
+```
+
+```{r}
+ehr %>%
+  ggplot(aes(x = drug_recency)) +
+  geom_histogram(fill = "#10CDD3")
+```
+
+```{r}
+ehr %>% 
+  group_by(drug_load) %>% 
+  summarise(mean = round(mean(study_exit_va), 0),
+            median = round(median(study_exit_va), 0)) %>% 
+  pivot_longer(
+    cols = c("mean", "median"),
+    names_to = "average_type",
+    values_to = "etdrs"
+  ) %>% 
+  ggplot(aes(x = factor(drug_load), y = etdrs, colour = average_type)) +
+  geom_point() +
+  labs(
+    title = "Number of maintenance injections is associated with outcome",
+    x = "Maintenance injections (n)",
+    y = "Exit visual acuity (ETDRS)"
+  )
+```
+
+
+```{r}
+ehr %>% 
+  filter(drug_recency <= 105) %>% 
+  ggplot(aes(x = drug_recency, y = study_exit_va)) +
+  geom_point() +
+  geom_smooth(
+    method = "loess",
+    colour = "#10CDD3") +
+  scale_x_continuous(breaks = seq(0, 105, 7)) +
+  scale_y_continuous(breaks = seq(0, 95, 10)) +
+  labs(
+    title = "Recency of injeciton does not appear to be influential",
+    x = "Days between injection and exit measurement",
+    y = "Exit visual acuity (ETDRS)")
+```
+
+```{r}
+# Incorrect to have done this without quasi-randomsiation, but would a graph be good for the paper?
+ehr %>% 
+  pivot_longer(
+    cols = c("baseline_etdrs", "study_exit_va"),
+    names_to = "desc",
+    values_to = "etdrs"
+  ) %>% 
+  ggplot(aes(x = etdrs, fill = desc)) +
+    geom_density(
+      size = 0,
+      alpha = 0.75)
+```
+
