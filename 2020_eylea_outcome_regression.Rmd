@@ -97,7 +97,56 @@ negative.control <- negative.control %>%
   va_glm()
 ```
 
-## per protocol
+```{r}
+# ≥ 15 letters
+negative.control[[6]][[1]]
+```
+
+```{r}
+# ≥ 10 letetrs 
+negative.control[[6]][[2]]
+```
+
+```{r}
+# < 15 letters
+negative.control[[6]][[3]]
+```
+
+# iptw
+
+```{r}
+# source ipt code
+source("fnc/inverse_probability_treatment.R")
+```
+
+```{r}
+# run ipt algorithm
+iptw <- inverse_probability_treatment(abc, ehr)
+```
+
+## intention_to_treat
+
+```{r}
+# run primary analysis fucntion
+iptw <- iptw %>% 
+  va_weighted_glm() ###!!!  r unify with va_glm.R
+```
+
+
+```{r}
+# ≥ 15 letters
+iptw[[6]][[1]]
+```
+
+```{r}
+# ≥ 10 letetrs 
+iptw[[6]][[2]]
+```
+
+```{r}
+# < 15 letters
+iptw[[6]][[3]]
+```
 
 # exact_matching
 
@@ -118,24 +167,26 @@ em <- em %>%
   va_glm()
 ```
 
-## per protocol
+```{r}
+# ≥ 15 letters
+em[[6]][[1]]
+```
 
-# psm
+```{r}
+# ≥ 10 letetrs 
+em[[6]][[2]]
+```
+
+```{r}
+# < 15 letters
+em[[6]][[3]]
+```
+
+# psm_single_iteration
 
 ```{r}
 # source psm code
 source("fnc/propensity_score_matching.R")
-```
-
-## single_iteration
-
-```{r}
-zedd <- propensity_score_matching(
-  trial_arm  = abc,
-  synthetic_arm = ehr,
-  iterations = 1,
-  caliper_sd = 0.1
-)
 ```
 
 ```{r}
@@ -143,76 +194,33 @@ zedd <- propensity_score_matching(
 psm <- read_csv("data/psm_first_iteration.csv")
 ```
 
+## intention to treat
+
 ```{r}
-xyz <- psm %>% 
+psm <- psm %>% 
   va_glm()
 ```
 
-
-## multiple_iterations
-
 ```{r}
-# preprocess data
-trial.list.column <- propensity_score_matching(
-  trial = abc, 
-  iterations = 50)
+# ≥ 15 letters
+psm[[6]][[1]]
 ```
 
 ```{r}
-## calculate propensity_score width of 0.1 standard deviation
-  caliper_ps <- trial.list.column %>% 
-    unnest() %>% 
-    ungroup() %>% 
-    filter(iteration == 1)
-  
-  caliper_ps <- (sd(caliper_ps$propensity_score) * 0.1)  ###!!! sd / 10 == 0.1 SD?
+# ≥ 10 letters 
+psm[[6]][[2]]
 ```
 
 ```{r}
-# create empty vector to supply to use as a match counter
-empty.vector <- vector(mode = "character") ###!!!
-
-# apply fuzzy_left_join_without_replacement() with map()
-julio <- trial.list.column %>% 
-  mutate(
-    match = map( 
-    .x = data,
-    ~ fuzzy_left_join_without_replacement(
-      trial.list.column = .x,
-      synthetic = ehr,
-      caliper = caliper_ps
-    )
-  ))
+# < 15 letters
+psm[[6]][[3]]
 ```
 
-```{r}
-  # unnest at the end(), ungroub(), group_by(iteration), nest()
-```
+# psm_multiple_iterations
 
-
-## per protocol
-
-
-# iptw
-
-```{r}
-# source ipt code
-source("fnc/inverse_probability_treatment.R")
-```
-
-
-```{r}
-# run ipt algorithm
-iptw <- inverse_probability_treatment(abc, ehr)
-```
-
-```{r}
-# run primary analysis fucntion
-iptw <- iptw %>% 
-  va_weighted_glm() ###!!!  r unify with va_glm.R
-```
-
-## intention_to_treat
-
-## per protocol
-
+zedd <- propensity_score_matching(
+  trial_arm  = abc,
+  synthetic_arm = ehr,
+  iterations = 1,
+  caliper_sd = 0.1
+)
