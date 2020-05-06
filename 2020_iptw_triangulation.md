@@ -1,38 +1,13 @@
----
-title: "iptw_triangulation"
-author: "Darren S Thomas"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-always_allow_html: yes
-output: github_document
----
+iptw\_triangulation
+================
+Darren S Thomas
+06 May, 2020
+
 # setup
 
-```{r setup, include=FALSE}
-# configure Rmd chunks
-knitr::opts_chunk$set(
-    echo = TRUE,      # output code chunks
-    message = FALSE,  # toggle off message output 
-    warning = FALSE)  # toggle off warning output
+# outcome\_regression
 
-# load frequently used packages
-library(tidymodels)
-library(tidyverse)
-library(patchwork)
-
-# set default ggplot theme
-courier_bw <- theme_bw() +
-  theme(text = element_text(family = "Courier"),
-        legend.position = "bottom")
-
-theme_set(courier_bw)
-
-# configure connection to mysql
-source("src/kale_mysql.R")
-```
-
-# outcome_regression
-
-```{r}
+``` r
 # source iptw code
 source("fnc/inverse_probability_treatment.R")
 
@@ -42,11 +17,13 @@ source("fnc/va_weighted_glm.R")
 
 To run below code we need three tables for three arms:
 
-* avastin trial arm (n 65)
-* eylea ehr arm (n 4,471)
-* avastin ehr arm (n 128)
+  - avastin trial arm (n 65)
+  - eylea ehr arm (n 4,471)
+  - avastin ehr arm (n 128)
 
-```{r}
+<!-- end list -->
+
+``` r
 # avastin trial arm
 avastin.trial <- read_csv("data/abc_patient_details.csv",
                 col_types = cols(
@@ -74,7 +51,7 @@ avastin.trial <- read_csv("data/abc_patient_details.csv",
   filter(treatment == "avastin")
 ```
 
-```{sql connection = kale, output.var = "eylea.ehr"}
+``` sql
 -- eylea ehr arm
 SELECT patient_eye AS id,
 treatment,
@@ -88,7 +65,7 @@ FROM amd_synthetic_eylea_arm_study_table
 WHERE eligibility = 1;
 ```
 
-```{sql connection = kale, output.var = "avastin.ehr"}
+``` sql
 -- avastin ehr arm
 SELECT patient_eye AS id,
 treatment,
@@ -102,44 +79,62 @@ FROM amd_synthetic_avastin_arm_study_table
 WHERE eligibility = 1;
 ```
 
-```{r}
+``` r
 # covnert sql imports to tibbles
 eylea.ehr <- as.tibble(eylea.ehr)
 avastin.ehr <- as.tibble(avastin.ehr)
 ```
 
-
-```{r}
+``` r
 # run ipt algorithm
 iptw <- inverse_probability_treatment(
   trial_arm = avastin.ehr,   # ignore argument name
   synthetic_arm = eylea.ehr)
 ```
 
-```{r}
+``` r
 # run primary analysis function
 iptw <- iptw %>% 
   va_weighted_glm() 
 ```
 
-```{r}
+``` r
 # ≥ 15 letters
 iptw[[6]][[1]]
 ```
 
-```{r}
+    ## # A tibble: 2 x 7
+    ##   term             estimate std.error statistic p.value conf.low conf.high
+    ##   <chr>               <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
+    ## 1 (Intercept)         0.275    0.0249    -51.8  0          0.262     0.289
+    ## 2 treatmentavastin    0.561    0.188      -3.09 0.00203    0.382     0.798
+
+``` r
 # ≥ 10 letters
 iptw[[6]][[2]]
 ```
 
-```{r}
+    ## # A tibble: 2 x 7
+    ##   term            estimate std.error statistic   p.value conf.low conf.high
+    ##   <chr>              <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl>
+    ## 1 (Intercept)        0.515    0.0216    -30.7  1.49e-206    0.494     0.537
+    ## 2 treatmentavast…    0.669    0.147      -2.74 6.07e-  3    0.498     0.886
+
+``` r
 # < 15 letters
 iptw[[6]][[3]]
 ```
 
-Now, we calculate the concordance in the estimands between our two target trials.
+    ## # A tibble: 2 x 7
+    ##   term             estimate std.error statistic p.value conf.low conf.high
+    ##   <chr>               <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
+    ## 1 (Intercept)          7.93    0.0325    63.7     0        7.44       8.45
+    ## 2 treatmentavastin     1.02    0.205      0.103   0.918    0.696      1.56
 
-```{r}
+Now, we calculate the concordance in the estimands between our two
+target trials.
+
+``` r
 concordance <- tribble(
   ~ trial_synthetic, ~ synthetic_synthetic,
   1.55, 0.56,
@@ -153,20 +148,29 @@ lm(
   broom::glance()
 ```
 
-```{r}
+    ## # A tibble: 1 x 11
+    ##   r.squared adj.r.squared  sigma statistic p.value    df logLik   AIC   BIC
+    ##       <dbl>         <dbl>  <dbl>     <dbl>   <dbl> <int>  <dbl> <dbl> <dbl>
+    ## 1     0.911         0.823 0.0889      10.3   0.192     2   4.65 -3.30 -6.01
+    ## # … with 2 more variables: deviance <dbl>, df.residual <int>
+
+``` r
 concordance %>% 
   ggplot(aes(x = synthetic_synthetic, y = trial_synthetic)) +
   geom_point() +
   geom_smooth(method = "lm")
 ```
 
-# delinieating_avastin_protocol
+![](2020_iptw_triangulation_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
-We know that Avastin was prescribed PRN during every 6 weeks the ABC trial, but how frequently during routine care?
+# delinieating\_avastin\_protocol
+
+We know that Avastin was prescribed PRN during every 6 weeks the ABC
+trial, but how frequently during routine care?
 
 128 of 2,056 eyes recieving 1.25 mg Avastin were eligible.
 
-```{sql connection = kale, output.var = "avastin.injections"}
+``` sql
 SELECT i.patient_eye, 
        i.EncounterDate AS encounter_date,
        i.InjectedDrugDesc AS injected_drug_desc,
@@ -181,7 +185,7 @@ WHERE s.eligibility = 1 AND
 ; 
 ```
 
-```{r}
+``` r
 avastin.injections <- avastin.injections %>% 
   as_tibble() %>% 
   arrange(
@@ -191,7 +195,7 @@ avastin.injections <- avastin.injections %>%
   mutate(encounter_date = lubridate::ymd(encounter_date))
 ```
 
-```{r}
+``` r
 # injection intervals vs year
 avastin.injections %>% 
   mutate(encounter_year = lubridate::year(encounter_date)) %>% 
@@ -209,3 +213,5 @@ avastin.injections %>%
     x = "Calendar year of administration",
     y = "Median days since previous injection")
 ```
+
+![](2020_iptw_triangulation_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
