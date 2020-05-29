@@ -4,8 +4,8 @@
 
 propensity_score_matching <- function(
   trial_arm, 
-  synthetic, 
-  iterations, 
+  synthetic_arm, 
+  iterations = 1, # shortcut without depricating argument until fix
   caliper) {
   
   # set seed for reproducible sampling
@@ -28,7 +28,7 @@ propensity_score_matching <- function(
   # predict Pr of treatment(Avastin == 1) for synthetic arm
   synthetic.psm <- augment(
     x = propensity_model,
-    newdata = synthetic,
+    newdata = synthetic_arm,
     type.predict = "response") %>% 
     # rename .fitted and .se.fit
     rename(
