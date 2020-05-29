@@ -2,7 +2,11 @@
 # input: abc (8 by 65) & ehr (8 by 4,472)
 # output: 
 
-propensity_score_matching <- function(trial, synthetic, iterations, caliper) {
+propensity_score_matching <- function(
+  trial_arm, 
+  synthetic, 
+  iterations, 
+  caliper) {
   
   # set seed for reproducible sampling
   set.seed(1337)
@@ -13,7 +17,7 @@ propensity_score_matching <- function(trial, synthetic, iterations, caliper) {
   # predict Pr of treatment(Avastin == 1) for trial arm
   trial.psm <- augment(
     x = propensity_model,
-    newdata = trial,
+    newdata = trial_arm,
     type.predict = "response") %>% 
     # rename .fitted and .se.fit
     rename(
@@ -52,7 +56,7 @@ propensity_score_matching <- function(trial, synthetic, iterations, caliper) {
       ~ sample_n(
         .x,
         size = nrow(.x),
-        repalce = FALSE
+        replace = FALSE
       )
     ))
   
