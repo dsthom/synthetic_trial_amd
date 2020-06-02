@@ -1,0 +1,108 @@
+---
+title: "2020_baseline_characteristics"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+# setup
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(tidymodels)
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+
+# configure connection to mysql
+source("src/kale_mysql.R")
+
+# source code to pre-process, run, and post-process glm (for em + psm)
+source("fnc/va_glm.R")
+
+# source code to pre-process, run, and post-process weighted glm (for ipwt)
+source("fnc/va_weighted_glm.R")
+```
+
+# read_from_csv
+
+```{r}
+abc <- read_csv("data/abc_patient_details.csv",
+                col_types = cols(
+                  id = col_character(),
+                  age_at_baseline = col_integer(),
+                  baseline_etdrs = col_integer(),
+                  injection_count = col_integer(),
+                  drug_recency = col_integer(),
+                  study_exit_va = col_integer()
+                )) %>% 
+  rename(
+    age = age_at_baseline,
+    drug_load = injection_count) %>% 
+  # reorder
+  select(
+    id,
+    treatment, 
+    age, 
+    gender,
+    baseline_etdrs,
+    drug_load,
+    drug_recency,
+    study_exit_va) %>% 
+  # restrict to avastin arm
+  filter(treatment == "avastin")
+```
+
+# import_from_mysql
+
+```{sql connection = kale, output.var = "ehr"}
+SELECT patient_eye AS id,
+treatment,
+age_at_baseline AS age,
+gender,
+baseline_va AS baseline_etdrs,
+drug_load,
+drug_recency,
+study_exit_va
+FROM amd_synthetic_eylea_arm_study_table
+WHERE eligibility = 1;
+```
+
+```{r}
+ehr <- as.tibble(ehr)
+```
+
+# baseline_characteristics
+
+```{r}
+abc %>% 
+  select(
+    age,
+    gender,
+    baseline_etdrs
+  ) %>% 
+  mutate(gender = factor(gender)) %>% 
+  skimr::skim()
+```
+
+```{r}
+ehr %>% 
+  select(
+    age,
+    gender,
+    baseline_etdrs
+  ) %>% 
+  mutate(gender = factor(gender)) %>% 
+  skimr::skim()
+```

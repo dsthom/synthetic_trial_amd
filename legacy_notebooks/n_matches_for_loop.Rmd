@@ -1,0 +1,509 @@
+---
+title: "exact_matching_eylea_avastin"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+# Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+```
+
+Read abc data.
+
+```{r}
+abc <- read_csv("data/abc_patient_characteristics.csv",
+                    col_types = cols(
+                      injection_count = col_skip(),
+                      id = col_factor(),
+                      injection_count = col_integer(),
+                      age_at_baseline = col_integer(),
+                      baseline_etdrs = col_integer())) %>% 
+  mutate(gender_m = if_else(gender == "M", 1, 0)) %>% 
+  filter(treatment == "avastin") %>% 
+  rename(
+    age = age_at_baseline) %>% 
+  unite(col = "age_gender_etdrs", 
+        c("age", "gender", "baseline_etdrs"), 
+        sep = "-",
+        remove = FALSE) %>% 
+  select(id,
+         age_gender_etdrs, 
+         gender_m,
+         age, 
+         baseline_etdrs)
+```
+
+Read ehr data.
+
+```{r}
+kale <- DBI::dbConnect(RMySQL::MySQL(),
+                        user = "admin", 
+                        password = "password",
+                        dbname = "NOVA6",
+                        host = "127.0.0.1",
+                        port = 9999)
+```
+
+```{sql connection = kale, output.var = "ehr"}
+SELECT patient_eye AS id,
+       injection_count,
+       gender,
+       age_at_baseline AS age,
+       baseline_va AS baseline_etdrs
+FROM amd_synthetic_eylea_arm_study_table   
+WHERE eligibility = 1;
+```
+
+```{r}
+ehr <- ehr %>% 
+  mutate(
+    gender_m = if_else(gender == "M", 1, 0)) %>% 
+  select(id,
+         gender_m,
+         age,
+         baseline_etdrs)
+```
+
+Convert to list-column workflow
+
+```{r}
+abc.nest <- abc %>% 
+  group_by(id, age_gender_etdrs) %>% 
+  nest()
+```
+
+```{r}
+abc.nest <- abc.nest %>% 
+  mutate(matches = map(.x = data, 
+                       ~ left_join(.x,
+                                   ehr,
+                                   by = c("gender_m",
+                                          "age",
+                                          "baseline_etdrs"),
+                                   keep = TRUE)))
+```
+
+Next, randomly sample 1 control for each ABC subject.
+
+```{r}
+set.seed(1337)
+
+abc.nest <- abc.nest %>% 
+  mutate(sampled_control = map(.x = matches,
+                               ~ sample_n(.x, size = 1)))
+```
+
+Unnest into a dataframe.
+
+```{r}
+abc.unnest <- abc.nest %>% 
+  select(sampled_control) %>% 
+  unnest() %>% 
+  ungroup() %>% 
+  rename(
+    abc_id = id,
+    ehr_id = id1)
+```
+
+Create look-up table for matched pairs.
+
+```{r}
+matched.pairs <- abc.unnest %>% 
+  drop_na(ehr_id) %>% 
+  select(age_gender_etdrs,
+         abc_id,
+         ehr_id) %>% 
+  # add pair_id
+  mutate(pair_id = 1:46)
+
+# create the same table in long form
+matched.pairs.long <- matched.pairs %>% 
+  pivot_longer(cols = abc_id: ehr_id,
+               names_to = "cohort",
+               values_to = "id")
+```
+
+Forty-six of 64 (0.72) eyes had exact matches. The 18 subjects that had no exact matches were:
+
+```{r}
+abc.unnest %>%
+  filter(is.na(ehr_id)) %>% 
+  select(abc_id,
+         age_gender_etdrs)
+```
+
+Create a table with 46 matched ABC subjects & 46 matched controls + va measurements in long form for plotting.
+
+```{r}
+matched.abc <- abc %>% 
+  filter(id %in% matched.pairs$abc_id) %>% 
+  mutate(cohort = "abc") %>% 
+  # add pair_id
+  left_join(select(matched.pairs, abc_id, pair_id),
+            by = c("id" = "abc_id"))
+
+matched.ehr <- abc.unnest %>% 
+  drop_na(ehr_id) %>% 
+  mutate(cohort = "ehr") %>% 
+  rename(id = ehr_id) %>% 
+  select(- abc_id) %>% 
+  # add pair_id
+  left_join(select(matched.pairs, ehr_id, pair_id),
+            by = c("id" = "ehr_id"))
+
+matched <- bind_rows(matched.abc, matched.ehr)
+```
+
+Read abc va data in longform.
+
+```{r}
+abc.va <- read_csv("data/abc_va_longform.csv",
+                   col_types = cols(
+                     id = col_character(),
+                     lost = col_skip(),
+                     arm = col_skip(),
+                     treatment = col_skip(),
+                     trt = col_skip(),
+                     week = col_integer(),
+                     etdrs = col_integer()
+                   )) %>% 
+  rename(id = study_number) %>% 
+  filter(id %in% matched.pairs$abc_id) %>% 
+  mutate(cohort = "abc")
+
+```
+
+Read ehr va data in longform (the .csv contains measurement for ALL elligible, not just those matched)
+
+Read ehr va data in long form (.csv). Need 3 columns: I) ehr.id; II) week; III) etdrs
+
+*Addition-subtraction transofrmation required as 4 va measurements were taken < week 0.*
+
+```{sql connection = kale, output.var = "ehr.va"}
+SELECT s.patient_eye AS id,
+       v.EncounterDate,
+       s.baseline_eylea_date,
+       DATEDIFF(v.EncounterDate, s.baseline_eylea_date) AS days_since_baseline,
+       CEIL(DATEDIFF(v.EncounterDate, s.baseline_eylea_date) / 7) AS week,
+       v.max_etdrs AS etdrs
+FROM amd_synthetic_eylea_arm_study_table s
+LEFT JOIN nvAMD_visual_acuity v
+ON s.patient_eye = v.patient_eye
+WHERE s.eligibility = 1 AND
+     v.EncounterDate = s.baseline_va_date OR
+     v.EncounterDate > s.baseline_eylea_date AND
+     v.EncounterDate <= s.study_exit;
+     
+-- verbose, but the clunky WHERE clauses pulls all baseline va measurements taken before date of first injection 
+```
+
+
+```{r}
+ehr.va <- ehr.va %>% 
+  as.tibble() %>% 
+  filter(id %in% matched.pairs$ehr_id) %>% 
+  mutate(cohort = "ehr")
+```
+
+Explore those who had no exact matches.
+
+```{r}
+abc.unmatched <- abc %>% 
+  anti_join(matched.abc,
+            by = "id")
+abc.unmatched
+```
+
+```{r}
+abc.unmatched %>% 
+  pivot_longer(cols = gender_m: baseline_etdrs,
+               names_to = "variable",
+               values_to = "value") %>% 
+  ggplot(aes(x = value, fill = variable)) +
+    facet_wrap(~ variable,
+               scales = "free_x") +
+    geom_histogram() +
+    scale_y_continuous(breaks = seq(0, 12, 2))
+```
+
+Low n but distributions of age and baseline_etdrs appear not to be overly skewed---though summary statstics and distibution plots are unlikely to be telling given the limited sample n.
+
+```{r}
+abc.unmatched %>% 
+  summarise(mean_age = floor(mean(age)),
+            sd_age = round(sd(age), 1),
+            mean_baseline_etdrs = round(mean(baseline_etdrs), 0),
+            sd_baseline_etdrs = round(sd(baseline_etdrs), 1))
+```
+
+Bind together `abc.va` & `ehr.va`.
+
+```{r}
+matched.va <- abc.va %>% 
+  rbind(select(ehr.va, id, week, etdrs, cohort))
+
+# Impute ETDRS <0 as 0
+matched.va$etdrs[matched.va$etdrs < 0] <- 0
+# convert cohort to drug recieved
+matched.va$drug[matched.va$cohort == "abc"] <- "Avastin (1.25 mg q6w)"
+matched.va$drug[matched.va$cohort == "ehr"] <- "Eylea (2 mg q8w)"
+```
+
+## Distirbution of confounders
+
+n injections (- 3 loading injections)
+
+Link abc injections.
+
+```{r}
+abc.covariates <- 
+  abc <- read_csv("data/abc_patient_characteristics.csv",
+                    col_types = cols(
+                      injection_count = col_integer(),
+                      id = col_factor(),
+                      age_at_baseline = col_skip(),
+                      baseline_etdrs = col_skip())) %>% 
+  filter(treatment == "avastin")
+```
+
+```{sql connection = kale, output.var = "ehr.covariates"}
+
+```
+
+Link ehr injections.
+
+
+
+* week of last follow-up
+
+## Loess trajectories
+
+```{r}
+a <- matched.va %>% 
+  # drop va measurements taken at week 1
+  filter(week != 1) %>% 
+ggplot(aes(x = week, y = etdrs)) +
+  facet_wrap(~ drug) +
+  geom_line(aes(group = id),
+            size = 0.25,
+            alpha = 0.3) +
+  geom_point(size = 0.5,
+             alpha = 0.3) +
+  geom_smooth(aes(colour = drug)) +
+  geom_rug(aes(colour = drug), 
+           sides = "b",
+           alpha = 0.3) +
+  scale_x_continuous(breaks = seq(0, 54, 12)) +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+b <- matched.va %>% 
+  # drop va measurements taken at week 1
+  filter(week != 1) %>% 
+ggplot(aes(x = week, y = etdrs)) +
+  geom_smooth(aes(group = drug,
+                  colour = drug,
+                  fill = drug,
+                  method = "loess",
+                  formula = )) +
+  scale_x_continuous(breaks = seq(0, 54, 12)) +
+  scale_y_continuous(breaks = seq(48, 65, 2)) +
+  theme(legend.title = element_blank())
+```
+
+```{r}
+library(patchwork)
+patchwork <- a / b +
+  plot_annotation(tag_levels = 'A')
+patchwork
+```
+
+
+
+```{r}
+pairs <- matched.va %>% 
+  left_join(select(matched.pairs.long, id, pair_id),
+            by = "id",
+            keep = FALSE) %>% 
+  group_by(pair_id) %>% 
+  nest() %>% 
+  mutate(
+    plots = map2(
+      .x = data, 
+      .y = pair_id,
+      ~ ggplot(.x,
+               aes(
+                 x = week,
+                 y = etdrs,
+                 colour = drug
+               )) +
+        geom_point() +
+        geom_line() +
+        scale_x_continuous(
+          breaks = seq(0, 54, 12)) +
+        labs(
+          title = glue::glue("Pair {.y}")
+        )
+    )
+  ) %>% 
+  mutate(
+    filename = str_c("pair_", pair_id, ".pdf")) %>% 
+  select(filename, plots)
+```
+
+Iteratively export each ggplot to a separate .pdf
+```{r}
+walk2(.x = pairs$filename,
+      .y = pairs$plots,
+      ~ ggsave(
+        filename = .x,
+        plot = .y,
+        path = "output"
+                 ))
+```
+
+
+CHANGE WEIGHTS OF LOESS--THEY BOTH MUST START AT SAME Y INTERCEPT GIVEN THAT THEY'RE MATCHED. SEE AARON'S PAPERS./ explore other polynomials? Mean visual acuity at week 0 is 51.8 ETDRS in both arms. Chekout https://rafalab.github.io/dsbook/smoothing.html
+
+FOUR EYLEA EYES HAVE NO WEEK 0 ETDRS--ARE THESE MEASUREED SOME WEEKS < BASELINE?
+
+## trial with loess spans
+
+```{r}
+
+z <- matched.va %>% 
+  group_by(drug, week) %>% 
+  summarise(
+    mean_etdrs = round(mean(etdrs,
+                         na.rm = TRUE), 1),
+    sd = round(sd(etdrs,
+            na.rm = TRUE), 0),
+    n = n())
+```
+
+Fit Loess model to each drug strata.
+
+```{r}
+loess <- matched.va %>% 
+  filter(week != 1) %>% 
+  group_by(drug) %>% 
+  nest() %>% 
+  mutate(model = map(.x = data,
+                     ~ loess(.x$etdrs ~ .x$week,
+                             # the degree of the polynomials to be used
+                             degree = 1,
+                             # the localised window to be used
+                             span = 4)))
+
+```
+
+TO DO: Play with parameters so that curves intercept y at mean etdrs at week 0; Avastin seems to be problematic, perhaps because of VA measurement at 1 week (potentially drop this?). [see: https://rafalab.github.io/dsbook/smoothing.html]
+
+
+```{r}
+matched.va
+```
+
+
+loess <- loess(etdrs ~ week, 
+               degree = 1,
+               span = 6,
+               data = matched.va[drug]
+               subset = drug)
+
+Rolling mean ETDRS, at 6- and 4 weekly intervals for Avatsin & Eylea respectively.
+
+TO DO:
+* ADJUST FOR N INJECTIONS + AND TIME SINCE LAST INJECTION.
+
+# time-to-event
+
+For the Eylea arm, retrieved last VA measurement during study period, then plot attrition as a KM function. 
+
+```{r}
+attrition <- ehr.va %>% 
+  group_by(id) %>% 
+  summarise(
+    last_follow = max(week),
+    event = 1) # event is drop out
+
+survival::survfit(Surv(time = last_follow,
+                             event = event) ~ 0,
+                        data = attrition) %>% 
+survminer::ggsurvplot(title = "Kaplan–Meier",
+           conf.int = FALSE,
+           risk.table = TRUE,
+           risk.table.title = "Sample n",
+           tables.theme = theme_cleantable(),
+           tables.y.text = FALSE,
+           risk.table.y.text = FALSE,
+           break.time.by = 6,
+           xlim = c(0, 54),
+           legend = "none",
+           xlab = "Week",
+           ylab = "Attrition",
+           surv.median.line = "hv",
+           font.family = "Courier",
+           ggtheme = courier_bw)
+```
+
+Link baseline va to matched.va
+
+```{r}
+xyz <- matched.va %>% 
+  filter(week == 0) %>% 
+  select(id,
+         baseline_etdrs = etdrs) %>% 
+  right_join(matched.va,
+             by = "id",
+             keep = FALSE)
+
+```
+
+```{r}
+DBI::dbWriteTable(
+  conn = kale,
+  name = "TEST",
+  value = xyz
+)
+```
+
+```{r}
+DBI::dbListTables(kale)
+```
+
+
+
+You can look into how many of the 46 discontinued treatment during study period.
+
+Time to 15-letter gain.
+
+# Intention-to-treat/last observation carried forward
+
+# stats_modelz
+
+Link two covariates
+
+To do: 
+* Bug: WHY YOU CARRYING OVER age_gender_etdrs WHICH WERE UNSELECTED
+* NEED LONGFORM TABLE (NROWS = 64 * 2, WITH ALL VA MEASUREMENTS AND COVARIATES)
