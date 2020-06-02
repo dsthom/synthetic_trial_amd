@@ -1,0 +1,14 @@
+---
+title: "0.1_table_one"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+  skimr::skim()
+  
+  psm <- psm %>% 
+  mutate(va_change = study_exit_va - baseline_etdrs) %>% 
+  select(treatment, age, gender, va_change) %>% 
+  group_by(treatment) 
