@@ -3,10 +3,13 @@
 # Requires table called abc from abc_patient_details of: id, treatment, age, gender, baseline_etdrs, drug_load, drug_load; and
 #          table ehr from amd_synthetic_eylea_arm_study_table of: id, treatment, age, gender, baseline_etdrs, drug_load, drug_load
 
-exact_matching <- function(abc, ehr){
+exact_matching <- function(
+  trial_arm, # table of 
+  synthetic_arm # table of
+  ){
   
   # prep abc tibble
-  abc.em <- abc %>% 
+  trial_arm.em <- trial_arm %>% 
     # gender as binary numeric
     mutate(gender_m = if_else(gender == "M", 1, 0)) %>% 
     # merge confounders into a single variable for matching
@@ -16,27 +19,30 @@ exact_matching <- function(abc, ehr){
           remove = FALSE)
   
   # prep ehr tibble
-  ehr.em <- ehr %>% 
+  synthetic_arm.em <- synthetic_arm %>% 
     mutate(gender_m = if_else(gender == "M", 1, 0))
   
   # exact matching algorithm
   set.seed(1337)
   
-  exact.matches <- abc.em %>% 
+  exact.matches <- trial_arm.em %>% 
     # convert to list-column
     group_by(id, age_gender_etdrs) %>% 
     nest() %>% 
     # tibble of all exact matches for each abc eye
     mutate(matches = map(.x = data,
                          ~ left_join(.x,
-                                     ehr.em,
+                                     synthetic_arm.em,
                                      by = c("age",
                                             "gender_m",
                                             "baseline_etdrs"),
                                      keep = TRUE))) %>% 
-    # randomly sample 1 match for each abc eye
-    mutate(sampled_match = map(.x = matches,
-                               ~ sample_n(.x, size = 1))) %>% 
+    # randomly sample 1 match for each trial eye
+    mutate(sampled_match = map(
+      .x = matches,
+      ~ sample_n(
+        .x, 
+        size = 1))) %>% 
     # unnest list column
     select(sampled_match) %>% 
     unnest() %>% 
@@ -46,7 +52,7 @@ exact_matching <- function(abc, ehr){
       abc_id = id,
       ehr_id = id1
     ) %>% 
-   # drop rows which have 0 matches
+   # drop rows that have 0 matches
     drop_na(ehr_id)
   
   # create longform list of matched eyes for future filtering export a list in longform of matches and pair_id
@@ -59,12 +65,9 @@ exact_matching <- function(abc, ehr){
                  names_to = "cohort",
                  values_to = "id")
   
-  # export matched.pairs to .csv for future reference
-  write_csv(matched.pairs, "data/eylea_em_matches.csv")
-  
   # create output table ammenable for logistic regression
-  # abc
-  matched.abc <- abc.em %>% 
+  # trial
+  matched.trial <- trial_arm.em %>% 
     # filter for only eyes that were matched
     filter(id %in% matched.pairs$id) %>% 
     # add pair_id
@@ -73,8 +76,8 @@ exact_matching <- function(abc, ehr){
     # drop variable
     select(- age_gender_etdrs)
   
-  # ehr
-  matched.ehr <- ehr.em %>% 
+  # synthetic
+  matched.ehr <- synthetic_arm.em %>% 
     # filter for only eyes that were matched
     filter(id %in% matched.pairs$id) %>% 
     # add pair_id 
@@ -82,7 +85,7 @@ exact_matching <- function(abc, ehr){
               by = "id")
   
   # combine tables into one
-  output <- bind_rows(matched.abc, matched.ehr) %>% 
+  output <- bind_rows(matched.trial, matched.ehr) %>% 
     # rearrange row order
     select(id,
            treatment, 
@@ -93,8 +96,4 @@ exact_matching <- function(abc, ehr){
            drug_load,
            drug_recency,
            study_exit_va)
-  # PSM
 }
-
-# check out fuzzyjoin::fuzzy_left_join / fuzzyjoin::difference_left_join() for inexact joins.
-# https://github.com/dgrtwo/fuzzyjoin
