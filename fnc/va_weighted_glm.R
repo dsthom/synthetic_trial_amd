@@ -2,7 +2,7 @@
 
 # Output is list-column workflow with the exponeniated ORs of glm in tidy format
 
-va_weighted_glm <- function(data, formula) {
+va_weighted_glm <- function(data) {
   
   # impute negative etdrs denoting light perception, counting fingers, etc., to 0
   data$study_exit_va[data$study_exit_va < 0] <- 0
@@ -39,7 +39,7 @@ va_weighted_glm <- function(data, formula) {
     # fit a glm to each nested dataframe
     mutate(glm = map(
       .x = data,
-      ~ glm(formula,
+      ~ glm(formula = y ~ treatment,
             family = binomial(link = "logit"),
             data = .x,
             weights = iptw)
@@ -47,6 +47,25 @@ va_weighted_glm <- function(data, formula) {
     # create column with tidy() output
     mutate(tidy_output = map(
       .x = glm,
+      ~ broom::tidy(
+        .x,
+        conf.int = TRUE,
+        conf.level = 0.95,
+        exponentiate = TRUE)
+    ))
+  
+  # repeat model and tidy output, adjsuting for drugload
+  data <- data %>% 
+    # fit (adjusted) glm to each nested dataframe
+    mutate(adj_glm = map(
+      .x = data,
+      ~ glm(formula = y ~ treatment + drug_load,
+            family = binomial(link = "logit"),
+            data = .x)
+    )) %>% 
+    # create column with tidy() output
+    mutate(adj_tidy_output = map(
+      .x = adj_glm,
       ~ broom::tidy(
         .x,
         conf.int = TRUE,
