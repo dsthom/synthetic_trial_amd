@@ -3,7 +3,9 @@
 # output: ipt (*9* by 4,537)---additional column is iptw
 
 #
-inverse_probability_treatment <- function(trial_arm, synthetic_arm){
+inverse_probability_treatment <- function(
+  trial_arm, 
+  synthetic_arm){
   
   # source propensity model
   source("src/propensity_model.R")
