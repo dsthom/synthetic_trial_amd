@@ -4,7 +4,10 @@
 
 va_glm <- function(data) {
   
-  # impute negative etdrs denoting light perception, counting fingers, etc., to 0
+  # impute counting fingers (-15 converted ETDRS) to 2
+  data$study_exit_va[data$study_exit_va == -15] <- 0
+  
+  # impute hand motion (-30), light perception (-50), and no light perception (-165) to 0
   data$study_exit_va[data$study_exit_va < 0] <- 0
   
   # calculate va_change and binary outcomes
