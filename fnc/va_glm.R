@@ -2,7 +2,9 @@
 
 # Output is list-column workflow with the exponeniated ORs of glm in tidy format
 
-va_glm <- function(data) {
+va_glm <- function(
+  data,
+  weights = NULL) {
   
   # impute counting fingers (-15 converted ETDRS) to 2
   data$study_exit_va[data$study_exit_va == -15] <- 2
@@ -44,7 +46,8 @@ va_glm <- function(data) {
        .x = data,
        ~ glm(formula = y ~ treatment,
              family = binomial(link = "logit"),
-             data = .x)
+             data = .x,
+             weights = weights)
      )) %>% 
   # create column with tidy() output
     mutate(tidy_output = map(
@@ -63,7 +66,8 @@ va_glm <- function(data) {
        .x = data,
        ~ glm(formula = y ~ treatment + drug_load,
              family = binomial(link = "logit"),
-             data = .x)
+             data = .x,
+             weights = weights)
      )) %>% 
      # create column with tidy() output
      mutate(adj_tidy_output = map(
