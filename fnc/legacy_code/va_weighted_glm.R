@@ -61,7 +61,8 @@ va_weighted_glm <- function(data) {
       .x = data,
       ~ glm(formula = y ~ treatment + drug_load,
             family = binomial(link = "logit"),
-            data = .x)
+            data = .x,
+            weights = iptw)
     )) %>% 
     # create column with tidy() output
     mutate(adj_tidy_output = map(
