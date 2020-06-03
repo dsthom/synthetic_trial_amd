@@ -18,5 +18,5 @@ inverse_probability_treatment <- function(
                   newdata = target.trial,
                   type.predict = "response") %>% 
     # calculate inverse probability of treatment weights
-    mutate(iptw = 1 / .fitted)  
+    mutate(ipw = 1 / .fitted)  
 }
