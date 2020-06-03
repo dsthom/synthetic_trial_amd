@@ -5,7 +5,7 @@
 va_glm <- function(data) {
   
   # impute counting fingers (-15 converted ETDRS) to 2
-  data$study_exit_va[data$study_exit_va == -15] <- 0
+  data$study_exit_va[data$study_exit_va == -15] <- 2
   
   # impute hand motion (-30), light perception (-50), and no light perception (-165) to 0
   data$study_exit_va[data$study_exit_va < 0] <- 0
