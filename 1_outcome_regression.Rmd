@@ -5,7 +5,6 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 always_allow_html: yes
 output: github_document
 ---
-# setup
 
 ```{r setup, include=FALSE}
 # configure Rmd chunks
@@ -89,14 +88,14 @@ nc[[6]][[2]]
 
 ```{r}
 # > -15 letters
-nc[[6]][[3]]
+negative.control[[6]][[3]]
 ```
 
 # iptw
 
 ```{r}
 iptw <- iptw %>% 
-  va_weighted_glm()
+  va_glm(weights = iptw$ipw)
 ```
 
 ```{r}
