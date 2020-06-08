@@ -57,6 +57,7 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN age_at_baseline INT(3) DEFAULT NULL,
   ADD COLUMN third_injection_date DATE DEFAULT NULL,
   ADD COLUMN drug_load INT(3) DEFAULT NULL,
+  ADD COLUMN n_va_reads INT(3) DEFAULT NULL,
   
   -- ABC-trial elligibility
 
@@ -80,6 +81,7 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   ADD COLUMN switch_excl INT(1) DEFAULT 0,
   ADD COLUMN incomplete_loading_excl INT(1) DEFAULT 0,
   ADD COLUMN missing_covariates_excl INT(1) DEFAULT 0,
+  ADD COLUMN no_follow_reads_excl INT(1) DEFAULT 0,
   ADD COLUMN incomplete_followup_excl INT(1) DEFAULT 0,
   
   ADD COLUMN eligibility INT(1) DEFAULT 0;
@@ -144,7 +146,8 @@ SELECT MAX(v.max_etdrs)
 FROM nvAMD_visual_acuity v
 WHERE s.PatientID = v.PatientID AND 
       s.EyeCode = v.EyeCode AND
-      s.baseline_eylea_date = v.EncounterDate
+      s.baseline_eylea_date = v.EncounterDate AND
+      v.max_etdrs != -10000
 );
 
 /*
@@ -180,7 +183,8 @@ SET s.study_exit_va_54 = (
   FROM nvAMD_visual_acuity v
   WHERE s.PatientID = v.PatientID AND 
         s.EyeCode = v.EyeCode AND
-        v.EncounterDate = s.study_exit_54
+        v.EncounterDate = s.study_exit_54 AND
+        v.max_etdrs != -10000
 );
 
 -- study_exit_week_54 
@@ -210,7 +214,8 @@ SET s.study_exit_va_lo = (
   FROM nvAMD_visual_acuity v
   WHERE s.PatientID = v.PatientID AND 
         s.EyeCode = v.EyeCode AND
-        s.study_exit_lo = v.EncounterDate
+        s.study_exit_lo = v.EncounterDate AND
+        v.max_etdrs != -10000
 );
 
 -- study_exit_week_lo
@@ -423,6 +428,21 @@ SET drug_load = (
         i.EncounterDate > p.third_injection_date AND 
         i.EncounterDate < p.study_exit AND  -- inejctions given on date of study_exit_va unlikely to have an impact on va
         i.InjectedDrugDesc = 'Eylea 2 mg/0.05ml (aflibercept)'
+);
+
+/*
+-- n_va_reads
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table p
+SET n_va_reads = (
+  SELECT COUNT(DISTINCT v.EncounterDate)
+  FROM nvAMD_visual_acuity v
+  WHERE p.PatientID = v.PatientID AND
+        p.EyeCode = v.EyeCode AND
+        v.EncounterDate > baseline_eylea_date AND
+        v.EncounterDate <= study_exit AND
+        v.max_etdrs > -10000
 );
 
 /*
@@ -667,6 +687,14 @@ WHERE gender IS NULL OR
       age_at_baseline IS NULL;
 
 /*
+-- no_follow_reads_excl
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table
+SET no_follow_reads_excl = 1
+WHERE n_va_reads = 0;
+
+/*
 -- incomplete_followup_excl
 */
 
@@ -697,6 +725,7 @@ WHERE fellow_excl = 0 AND
       switch_excl = 0 AND
       incomplete_loading_excl = 0 AND
       missing_covariates_excl = 0 AND
+      no_follow_reads_excl = 0 AND
       incomplete_followup_excl = 0;
 
 /*
