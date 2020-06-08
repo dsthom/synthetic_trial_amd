@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
     warning = FALSE)  # toggle off warning output
 
 # load frequently used packages
-library(tidymodels)
+library(broom)
 library(tidyverse)
 
 # set default ggplot theme
