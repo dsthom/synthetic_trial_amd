@@ -4,7 +4,10 @@
 
 va_glm <- function(
   data,
-  weights = NULL) {
+  weights = 1) {
+  
+  # -4 is in fact etdrs 4 (1/60 snellen meters)
+  data$study_exit_va[data$study_exit_va == -4] <- 4
   
   # impute counting fingers (-15 converted ETDRS) to 2
   data$study_exit_va[data$study_exit_va == -15] <- 2
