@@ -27,14 +27,18 @@ WHERE s.eligibility = 1 AND
 GROUP BY id, v.EncounterDate;
       
 /*
--- impute negative integers to 0 or as NULL if 100000
+-- impute negative integers
 */
 
 UPDATE syn_avastin_eylea_va_longform
 SET etdrs = 
   CASE
+  WHEN etdrs = -4 THEN 4
+  WHEN etdrs = -15 THEN 2
+  WHEN etdrs = -30 THEN 0
+  WHEN etdrs = -50 THEN 0
+  WHEN etdrs = -165 THEN 0
   WHEN etdrs = -10000 THEN NULL
-  WHEN etdrs < 0 THEN 0
   ELSE etdrs
   END;
       
@@ -55,7 +59,7 @@ ALTER TABLE syn_avastin_eylea_censorship
   ADD COLUMN baseline_read INT(3) DEFAULT NULL,
   ADD COLUMN greater_or_eq_15 INT(2) DEFAULT NULL,
   ADD COLUMN greater_or_eq_10 INT(2) DEFAULT NULL,
-  ADD COLUMN greater_or_eq_neg_15 INT(2) DEFAULT NULL,
+  ADD COLUMN less_or_eq_neg_15 INT(2) DEFAULT NULL,
   ADD COLUMN last_va_week INT(2) DEFAULT NULL;
 
 /*
@@ -66,8 +70,7 @@ UPDATE syn_avastin_eylea_censorship s
 LEFT JOIN syn_avastin_eylea_va_longform v
 USING(id)
 SET s.baseline_read = v.etdrs
-WHERE v.week = 0 AND 
-      s.treatment = 'avastin';
+WHERE v.week = 0;
 
 UPDATE syn_avastin_eylea_censorship c 
 LEFT JOIN amd_synthetic_eylea_arm_study_table s
@@ -99,14 +102,14 @@ SET greater_or_eq_10 = (
 );
 
 /*
--- greater_or_eq_neg_15
+-- less_or_eq_neg_15
 */
 
 UPDATE syn_avastin_eylea_censorship s
-SET greater_or_eq_neg_15 = (
+SET less_or_eq_neg_15 = (
   SELECT MIN(week)
   FROM syn_avastin_eylea_va_longform v
-  WHERE v.etdrs - s.baseline_read < -15 AND
+  WHERE v.etdrs - s.baseline_read <= -15 AND
         s.id = v.id
 );
 
