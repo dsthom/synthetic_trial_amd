@@ -72,12 +72,38 @@ table_one(nc) %>%
 
 # iptw
 
+Calculating the weighted baseline characteristics for iptw cohort is not straightforward and therefore we will rely on available solutions.
+
 ```{r}
+iptw <- iptw %>%
+  # categorical vars must be as factors
+  mutate(gender = as.factor(gender))
+
+iptw.svy <- survey::svydesign(
+  ids = ~0, # no hierachy
+  strata = NULL,
+  weights = iptw$ipw,
+  nest = FALSE,
+  data = iptw
+)
+```
+
+```{r}
+tableone::svyCreateTableOne(
+  vars = c('gender', 'age', 'baseline_etdrs'),
+  strata = 'treatment',
+  data = iptw.svy
+) %>% 
+  print(
+    nonnormal = c('age', 'baseline_etdrs'),
+    contDigits = 0)
+```
+
+```{r}
+# ranges are unaffected
 table_one(iptw) %>% 
     knitr::kable()
 ```
-
-
 # em
 
 ```{r}
@@ -92,3 +118,37 @@ table_one(em) %>%
 table_one(psm) %>% 
     knitr::kable()
 ```
+
+# aflibercept (before aligning protocols)
+
+```{r}
+# configure connection to mysql
+source("src/kale_mysql.R")
+```
+
+```{sql connection = kale, output.var = 'all.eylea'}
+-- output.var = 'all.eylea'
+SELECT patient_eye AS id,
+treatment,
+age_at_baseline AS age,
+gender,
+baseline_va AS baseline_etdrs
+FROM amd_synthetic_eylea_arm_study_table;
+```
+
+```{r}
+# correct for if 1/60 snellen meters
+all.eylea$baseline_etdrs[all.eylea$baseline_etdrs == -4] <- 4
+
+# correct for it cf
+all.eylea$baseline_etdrs[all.eylea$baseline_etdrs == -15] <- 2
+
+# correct for if gm, lp, or nlp
+all.eylea$baseline_etdrs[all.eylea$baseline_etdrs <= -30] <- 0
+
+all.eylea %>% 
+  as_tibble() %>% 
+  na.omit() %>% 
+  table_one()
+```
+
