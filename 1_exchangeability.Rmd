@@ -20,7 +20,11 @@ library(tidyverse)
 # set default ggplot theme
 courier_bw <- theme_bw() +
   theme(text = element_text(family = "Courier"),
-        legend.position = "bottom")
+        legend.position = "bottom",
+        strip.background = element_rect(
+          colour = "black", 
+          fill = "white",
+          size = 0.5))
 
 theme_set(courier_bw)
 ```
@@ -48,18 +52,110 @@ z <- map(
 
 # name each element of list
 names(z) <- c('nc', 'iptw', 'em', 'psm')
+
+# add var to identify each cohort when lists are merged
+z <- map2(
+  .x = z,
+  .y = list('nc', 'iptw', 'em', 'psm'),
+  ~ mutate(
+    .x,
+    cohort = .y
+  )
+)
+
+# add weight var (ipw weights will be updated later)
+z <- map(
+  .x = z,
+  ~ mutate(
+    .x,
+    weight = 1)
+)
+
+# select only cont. confounders
+z <- map(
+  .x = z,
+  ~ select(.x, id, age, baseline_etdrs, cohort, treatment, weight)
+)
+
+# combine individual elements into a singl df
+zz <- do.call(rbind.data.frame, z)
 ```
 
-do.call(rbind.data.frame, simulation.n)
+```{r}
+# pivot longer
+zz <- zz %>% 
+  pivot_longer(
+    cols = age:baseline_etdrs,
+    names_to = "var",
+    values_to = "unit"
+  )
+```
 
-# extract each elelment of list as tbl
-nc <- z %>% pluck("nc")
-
-iptw <- z %>% pluck("iptw")
-  
-em <- z %>% pluck("em")
-
-psm <- z %>% pluck("psm")
+```{r}
+# dev_testing of weights for iptw
+w <- read_csv("data/cohort_iptw.csv") %>% 
+  select(id, treatment, age, baseline_etdrs, ipw) %>% 
+  pivot_longer(
+    cols = age:baseline_etdrs,
+    names_to = "var",
+    values_to = "unit"
+  )
++ facet_grid(. ~ fl)
+w %>% 
+  ggplot(aes(x = unit, colour = treatment, weight = ipw)) +
+    facet_grid(
+    . ~ var,
+    scales = "free_x") +
+  geom_density(alpha = 0.5) +
+  scale_colour_discrete(
+    name = NULL,
+    labels = c("Aflibercept", "Eylea")) +
+  labs(
+    x = NULL,
+    y = "Density")
 ```
 
 
+```{r}
+# assign facet labels to vectors
+cohort_lbl <- c(
+  "nc" = "NC", 
+  "iptw" = "IPTW", 
+  "em" = "EM", 
+  "psm" = "PSM")
+
+var_lbl <- c(
+  "age" = "Age at baseline (years)", 
+  "baseline_etdrs" = "Baseline read (ETDRS)")
+
+# plot
+zz %>% 
+  mutate(cohort = factor(cohort, levels = c("nc", "iptw", "em", "psm"))) %>% 
+  ggplot(aes(x = unit, colour = treatment)) +
+  facet_grid(
+    cohort ~ var,
+    scales = "free_x",
+    labeller = labeller(
+      var = var_lbl,
+      cohort = cohort_lbl
+    )) +
+  geom_density(alpha = 0.5) +
+  scale_colour_discrete(
+    name = NULL,
+    labels = c("Aflibercept", "Eylea")) +
+  labs(
+    x = NULL,
+    y = "Density")
+```
+
+To do: 
+
+* iptw is not weighted!
+* annotate with AUC
+
+#### dev
+
+  facet_grid(
+    cohort ~ var,
+    switch = "y",
+    scales = "free_x")
