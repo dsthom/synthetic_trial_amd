@@ -6,7 +6,7 @@ An emulated target trial comparing I) the bevacizumab arm (n 65) of the ABC tria
 
 # Table of contents
 
-- [Heading](#heading)
+- [Arms](#Arms)
   * [Sub-heading](#sub-heading)
     + [Sub-sub-heading](#sub-sub-heading)
 - [Heading](#heading-1)
