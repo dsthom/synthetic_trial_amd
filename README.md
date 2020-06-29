@@ -7,17 +7,17 @@ An emulated target trial comparing I) the bevacizumab arm (n 65) of the ABC tria
 # Table of contents
 
 - [Arms](#Arms)
-  * [Bevacizumav trial arm](## Bevacizumav trial arm)
-  * [Aflibercept synthetic arm](## Aflibercept synthetic arm )
-- [Quasi-randomsiation](## Aflibercept synthetic arm)
-  * [Negative control](## Negative control)
-  * [Inverse propensity score weighting](## Inverse propensity score weighting)
-  * [Exact matching](## Exact matching)
-  * [Propensity score matching](## Propensity score matching)
-- [Analyses](# Analyses)
-  * [Noninferiority](## Noninferiority)
-  * [Superiority](## Superiority)
-  * [Time-to-event](## Time-to-event)
+  * [Bevacizumav trial arm](##Bevacizumav trial arm)
+  * [Aflibercept synthetic arm](##Aflibercept synthetic arm )
+- [Quasi-randomsiation](##Aflibercept synthetic arm)
+  * [Negative control](##Negative control)
+  * [Inverse propensity score weighting](##Inverse propensity score weighting)
+  * [Exact matching](##Exact matching)
+  * [Propensity score matching](##Propensity score matching)
+- [Analyses](#Analyses)
+  * [Noninferiority](##Noninferiority)
+  * [Superiority](##Superiority)
+  * [Time-to-event](##Time-to-event)
 
 <!-- toc -->
 
