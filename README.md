@@ -7,23 +7,40 @@ An emulated target trial comparing I) the bevacizumab arm (n 65) of the ABC tria
 # Table of contents
 
 - [Arms](#Arms)
-  * [Sub-heading](#sub-heading)
-    + [Sub-sub-heading](#sub-sub-heading)
-- [Heading](#heading-1)
-  * [Sub-heading](#sub-heading-1)
-    + [Sub-sub-heading](#sub-sub-heading-1)
-- [Heading](#heading-2)
-  * [Sub-heading](#sub-heading-2)
-    + [Sub-sub-heading](#sub-sub-heading-2)
+  * [Bevacizumav trial arm](## Bevacizumav trial arm)
+  * [Aflibercept synthetic arm](## Aflibercept synthetic arm )
+- [Quasi-randomsiation](## Aflibercept synthetic arm)
+  * [Negative control](## Negative control)
+  * [Inverse propensity score weighting](## Inverse propensity score weighting)
+  * [Exact matching](## Exact matching)
+  * [Propensity score matching](## Propensity score matching)
+- [Analyses](# Analyses)
+  * [Noninferiority](## Noninferiority)
+  * [Superiority](## Superiority)
+  * [Time-to-event](## Time-to-event)
 
 <!-- toc -->
 
 # Arms
-## Bevacizumav trial arm (ABC trial)
+## Bevacizumav trial arm 
 
-## Aflibercept synthetic arm (Electronic Health Records)
+ABC trial)
+
+## Aflibercept synthetic arm 
+
+(Electronic Health Records)
 
 # Quasi-randomsiation
+
+Emcompassed numerous quasi-randomsiation methods for conditioning on confounding variables (vars that are common causes of both x and y).
+
+## Negative control
+
+## Inverse propensity score weighting
+
+## Exact matching
+
+## Propensity score matching
 
 # Analyses
 ## Noninferiority
@@ -32,4 +49,5 @@ An emulated target trial comparing I) the bevacizumab arm (n 65) of the ABC tria
 
 ## Time-to-event
 
+# Misc
 create bash script that runs scripts as pipeline in sequence
