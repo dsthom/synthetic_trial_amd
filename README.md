@@ -8,12 +8,10 @@ An emulated target trial comparing I) the bevacizumab arm (n 65) of the ABC tria
 
 - [Arms](#Arms)
   * [Bevacizumav trial arm](##Bevacizumav trial arm)
-  * [Aflibercept synthetic arm](##Aflibercept synthetic arm )
+  * [Aflibercept synthetic arm](##Aflibercept synthetic arm)
+  
 - [Quasi-randomsiation](##Aflibercept synthetic arm)
-  * [Negative control](##Negative_control)
-  * [Inverse propensity score weighting](##Inverse propensity score weighting)
-  * [Exact matching](##Exact matching)
-  * [Propensity score matching](##Propensity score matching)
+
 - [Analyses](#Analyses)
   * [Noninferiority](##Noninferiority)
   * [Superiority](##Superiority)
@@ -21,33 +19,46 @@ An emulated target trial comparing I) the bevacizumab arm (n 65) of the ABC tria
 
 <!-- toc -->
 
-# Arms
-## Bevacizumav trial arm 
+#Arms
+##Bevacizumav trial arm 
 
-(ABC trial)
+Borrows the Bevacizumab arm from the ABC trial.
 
-## Aflibercept synthetic arm 
+##Aflibercept synthetic arm 
 
-(Electronic Health Records)
+Assembled from Electronic Health Records:
 
-# Quasi-randomsiation
+* `src/amd_irf_srf_large_tables.sql` retrieves all treatments and readings for eyes with a indication of AMD.
+* `src/synthetic_eylea_arm_study_table.sql` retrieves vars and aligns all eyes in alignment with ABC and target-trial eligibility
 
-Emcompassed numerous quasi-randomsiation methods for conditioning on confounding variables (vars that are common causes of both x and y).
+#Quasi-randomsiation
 
-## Negative control
+In which numerous quasi-randomsiation methods are employed for conditioning on confounding variables (vars that are common causes of both x and y).
 
-## Inverse propensity score weighting
+These cohorts are assembled in `0_cohorts_generation.Rmd` using bespoke functions listed below:
 
-## Exactmatching
+| Method | Function |
+|:--------:|:----------:|
+| Negative control | &mdash; |
+| Inverse Probability Treatment Weighting | `fnc/inverse_probability_treatment.R` |
+| Exact matching | `fnc/exact_matching.R`|
+| Propensity Score Matching | `fnc/propensity_score_matching.R`|
 
-## Propensity score matching
+These cohorts are then saved to `/data` as .csv and read in for each analyses.
 
-# Analyses
-## Noninferiority
+#Analyses
 
-## Superiority
+Causal assumption of exchangeability visualised in `1_exchangeability`.
+Baseline characteristics created in `1_table_one`.
 
-## Time-to-event
+##Noninferiority
 
-# Misc
-create bash script that runs scripts as pipeline in sequence
+Noninferiority analysis contained in `1_noninferiority`.
+
+##Superiority
+
+Superiority analysis contained in `1_superiority`.
+
+##Time-to-event
+
+Time-to-event analysis contained in `1_time_to_event`.
