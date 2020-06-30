@@ -1,5 +1,3 @@
--- !preview conn=DBI::dbConnect(RMySQL::MySQL(), user = "admin", password = "password", dbname = "NOVA5", host = "127.0.0.1", port = 9999)
-
 /*
 Script to create tables: 
 nvAMD_surgery_indications

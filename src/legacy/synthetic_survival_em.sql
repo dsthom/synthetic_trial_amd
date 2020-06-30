@@ -1,5 +1,3 @@
--- !preview conn=DBI::dbConnect(RMySQL::MySQL(), user = "admin", password = "password", dbname = "NOVA5", host = "127.0.0.1", port = 9999)
-
 /* 
 Script to create & populate the study table: amd_synthetic_time_to_event_study_table having run 
 amd_irf_srf_large_tables.sql, synthetic_eylea_arm_study_table.sql, and exact_matching_eylea.Rmd.
