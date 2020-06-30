@@ -1,12 +1,11 @@
-# function to generate n ps-matched sets
-# input: abc (8 by 65) & ehr (8 by 4,472)
-# output: 
+# script to udnertake propensity score matching
 
 propensity_score_matching <- function(
-  trial_arm, # table of
-  synthetic_arm, # table of
-  caliper,
-  ps_trimming) {
+  trial_arm, # tbl of trial arm
+  synthetic_arm, # tbl of synthetic pool
+  caliper, # the caliper under which matching should be undertaken
+  ps_trimming # boolean operator indicating whether trimming of ps should be undertaken
+  ) {
   
   # set seed for reproducible sampling
   set.seed(1337)
@@ -19,6 +18,7 @@ propensity_score_matching <- function(
     x = propensity_model,
     newdata = trial_arm,
     type.predict = "response") %>% 
+    
     # rename .fitted and .se.fit
     rename(
       propensity_score = .fitted,
@@ -30,6 +30,7 @@ propensity_score_matching <- function(
     x = propensity_model,
     newdata = synthetic_arm,
     type.predict = "response") %>% 
+    
     # rename .fitted and .se.fit
     rename(
       propensity_score = .fitted,
@@ -55,9 +56,11 @@ propensity_score_matching <- function(
 
   # inexact matching
   ps.matches <- trial.psm %>% 
+    
     # convert to list-column
     group_by(id) %>% 
     nest() %>% 
+    
     # tibble of all exact ps matches
     mutate(matches = map(
       .x = data,
@@ -68,6 +71,7 @@ propensity_score_matching <- function(
         max_dist = caliper_ps 
       )
     )) %>% 
+    
     # randomly sample 1 match for each trial eye
     mutate(sampled_match = map(
       .x = matches,
@@ -76,15 +80,18 @@ propensity_score_matching <- function(
         size = 1
       )
     )) %>% 
+    
     # unnest list column
     select(sampled_match) %>% 
     unnest() %>% 
     ungroup() %>% 
+    
     # rename ids
     rename(
       abc_id = id,
       ehr_id = id1
     ) %>% 
+    
     # drop rows that have 0 matches
     drop_na(ehr_id)
   
@@ -102,32 +109,38 @@ propensity_score_matching <- function(
   # create output table ammenable for logistic regression
   # trial
   matched.trial <- trial.psm %>% 
+    
     # filter for only eyes that were matched
     filter(id %in% matched.pairs$id) %>% 
+    
     # add pair_id
     left_join(select(matched.pairs, id, pair_id),
               by = "id")
   
   # synthetic
   matched.synthetic <- synthetic.psm %>% 
+    
     # filter for only eyes that were matched
     filter(id %in% matched.pairs$id) %>% 
+    
     # add pair_id 
     left_join(select(matched.pairs, id, pair_id),
               by = "id")
   
   # combine tables into one
   output <- bind_rows(matched.trial, matched.synthetic) %>% 
+    
     # rearrange row order
-    select(id,
-           treatment, 
-           pair_id,
-           propensity_score,
-           age,
-           gender,
-           baseline_etdrs,
-           drug_load,
-           drug_recency,
-           study_exit_va)
+    select(
+      id,
+      treatment, 
+      pair_id,
+      propensity_score,
+      age,
+      gender,
+      baseline_etdrs,
+      drug_load,
+      drug_recency,
+      study_exit_va)
   
 }

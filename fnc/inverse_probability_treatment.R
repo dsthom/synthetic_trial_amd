@@ -1,12 +1,11 @@
-# function to calculate the inverse probability of treatment
-# input: abc (8 by 65) & ehr (8 by 4,472)
-# output: ipt (*9* by 4,537)---additional column is iptw
+# script to calculate the inverse probability of treatment
 
 #
 inverse_probability_treatment <- function(
-  trial_arm, 
-  synthetic_arm,
-  ps_trimming){
+  trial_arm, # tbl of trial arm
+  synthetic_arm, # tbl of synthetic pool
+  ps_trimming # boolean operator indicating whether trimming of ps should be undertaken
+  ) {
   
   # source propensity model
   source("src/propensity_model.R")
@@ -18,6 +17,7 @@ inverse_probability_treatment <- function(
   output <- augment(x = propensity_model,
                   newdata = target.trial,
                   type.predict = "response") %>% 
+    
     # calculate inverse probability of treatment weights
     mutate(ipw = 1 / .fitted)
   
@@ -33,4 +33,3 @@ inverse_probability_treatment <- function(
   output
   
 }
-
