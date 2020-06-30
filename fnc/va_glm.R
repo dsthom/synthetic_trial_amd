@@ -4,7 +4,7 @@
 
 va_glm <- function(
   data,
-  weights = 1) {
+  weights) {
   
   # -4 is in fact etdrs 4 (1/60 snellen meters)
   data$study_exit_va[data$study_exit_va == -4] <- 4
