@@ -5,7 +5,8 @@
 propensity_score_matching <- function(
   trial_arm, # table of
   synthetic_arm, # table of
-  caliper) {
+  caliper,
+  ps_trimming) {
   
   # set seed for reproducible sampling
   set.seed(1337)
@@ -34,6 +35,18 @@ propensity_score_matching <- function(
       propensity_score = .fitted,
       propensity_score_se = .se.fit
     )
+  
+  # ps_trimming
+  
+  if(ps_trimming == TRUE){
+    synthetic.psm <- synthetic.psm %>% 
+      filter(between(
+        propensity_score,
+        min(trial.psm$propensity_score[trial.psm$treatment == 'avastin']),
+        max(trial.psm$propensity_score[trial.psm$treatment == 'avastin'])
+     ))
+      
+  }
   
   # calculate propensity_score width of 0.1 standard deviation
 
