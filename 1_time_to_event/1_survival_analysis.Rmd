@@ -1,0 +1,336 @@
+---
+title: "1_survival_analysis"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(patchwork)
+library(survival)
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+
+# configure connection to mysql
+source("../src/kale_mysql.R")
+```
+
+# read data
+
+```{sql connection = kale, output.var = "censorship"}
+SELECT *
+FROM syn_avastin_eylea_censorship;
+```
+
+```{r}
+# convert sql import to tbl
+censorship <- as_tibble(censorship)
+```
+
+```{r}
+# create list of filenames to read from
+y <- list(
+  "../data/cohort_nc.csv",
+  "../data/cohort_iptw.csv",
+  "../data/cohort_em.csv",
+  "../data/cohort_psm.csv"
+)
+
+# read cohorts from .csv
+z <- map(
+  .x = y,
+  ~ read_csv(
+    file = .x,
+    col_types = cols(
+      treatment = col_factor(levels = c('eylea', 'avastin'))
+    ))
+)
+
+# name each element of list
+names(z) <- c('nc', 'iptw', 'em', 'psm')
+
+# extract each elelment of list as tbl
+nc <- z %>% pluck('nc')
+
+iptw <- z %>% pluck('iptw')
+  
+em <- z %>% pluck('em')
+
+psm <- z %>% pluck('psm')
+```
+
+```{r}
+# Surv requires weights
+
+nc <- mutate(nc, weights = 1)
+iptw <- rename(iptw, weights = ipw)
+em <- mutate(em, weights = 1)
+psm <- mutate(psm, weights = 1)
+```
+
+
+```{r}
+# source fncs
+source("../fnc/survival_wrangle.R")   # joins censorship data to cohorts
+source("../fnc/survival_km.R")        # models a survfit ovbject
+source("../fnc/ggsurvplot_courier.R") # plots kaplan-meiers
+```
+
+# nc
+
+```{r}
+#
+
+nc.cens <- map2(
+  .x = list(
+    nc
+  ),
+  .y = list(
+    '>=15',
+    '>=10',
+    '<=-15'),
+  .f = ~ survival_wrangle(
+    cohort_tbl = .x,
+    pool_tbl = censorship,
+    event = .y
+  )
+)
+
+names(nc.cens) <- list(
+    '>=15',
+    '>=10',
+    '<=-15')
+```
+
+```{r}
+#
+
+nc.kms <- map(
+  .x = nc.cens,
+  ~ survival_km(
+    data = .x,
+    weights = weights
+  )
+)
+```
+
+```{r}
+#
+
+nc.plots <- map2(
+  .x = nc.kms,
+  .y = nc.cens,
+  ~ ggsurvplot_courier(
+    fit = .x,
+    data = .y
+  )
+)
+```
+
+# iptw
+
+```{r}
+#
+
+iptw.cens <- map2(
+  .x = list(
+    iptw
+  ),
+  .y = list(
+    '>=15',
+    '>=10',
+    '<=-15'),
+  .f = ~ survival_wrangle(
+    cohort_tbl = .x,
+    pool_tbl = censorship,
+    event = .y
+  )
+)
+
+names(iptw.cens) <- list(
+    '>=15',
+    '>=10',
+    '<=-15')
+```
+
+```{r}
+#
+
+iptw.kms <- map(
+  .x = iptw.cens,
+  ~ survival_km(
+    data = .x,
+    weights = weights
+  )
+)
+```
+
+```{r}
+#
+
+iptw.plots <- map2(
+  .x = iptw.kms,
+  .y = iptw.cens,
+  ~ ggsurvplot_courier(
+    fit = .x,
+    data = .y
+  )
+)
+```
+
+# em
+
+```{r}
+#
+
+em.cens <- map2(
+  .x = list(
+    em
+  ),
+  .y = list(
+    '>=15',
+    '>=10',
+    '<=-15'),
+  .f = ~ survival_wrangle(
+    cohort_tbl = .x,
+    pool_tbl = censorship,
+    event = .y
+  )
+)
+
+names(em.cens) <- list(
+    '>=15',
+    '>=10',
+    '<=-15')
+```
+
+```{r}
+#
+
+em.kms <- map(
+  .x = em.cens,
+  ~ survival_km(
+    data = .x,
+    weights = weights
+  )
+)
+```
+
+```{r}
+#
+
+em.plots <- map2(
+  .x = em.kms,
+  .y = em.cens,
+  ~ ggsurvplot_courier(
+    fit = .x,
+    data = .y
+  )
+)
+```
+
+# psm
+
+```{r}
+#
+
+psm.cens <- map2(
+  .x = list(
+    psm
+  ),
+  .y = list(
+    '>=15',
+    '>=10',
+    '<=-15'),
+  .f = ~ survival_wrangle(
+    cohort_tbl = .x,
+    pool_tbl = censorship,
+    event = .y
+  )
+)
+
+names(psm.cens) <- list(
+    '>=15',
+    '>=10',
+    '<=-15')
+```
+
+```{r}
+#
+
+psm.kms <- map(
+  .x = psm.cens,
+  ~ survival_km(
+    data = .x,
+    weights = weights
+  )
+)
+```
+
+```{r}
+#
+
+psm.plots <- map2(
+  .x = psm.kms,
+  .y = psm.cens,
+  ~ ggsurvplot_courier(
+    fit = .x,
+    data = .y
+  )
+)
+```
+
+# combine
+
+```{r}
+plots <- c(
+  nc.plots,
+  iptw.plots,
+  em.plots,
+  psm.plots
+)
+```
+
+```{r}
+# wrap individual elements
+arrange_ggsurvplots(
+  plots, 
+  print = TRUE,
+  ncol = 4,
+  nrow = 3)
+```
+
+```{r}
+# save as object
+a <- arrange_ggsurvplots(
+  plots, 
+  print = TRUE,
+  ncol = 4,
+  nrow = 3)
+
+# export as .tiff
+ggsave(
+  filename = "fig_5.tiff",
+  plot = a,
+  device = "tiff",
+  path = "../figs",
+  width = 134,
+  height = 100,
+  units = "mm",
+  dpi = 300
+)
+```

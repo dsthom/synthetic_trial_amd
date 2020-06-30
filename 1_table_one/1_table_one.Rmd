@@ -1,0 +1,154 @@
+---
+title: "0.1_table_one"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+```
+
+# read_data
+
+```{r}
+# create list of filenames to read from
+y <- list(
+  "data/cohort_nc.csv",
+  "data/cohort_iptw.csv",
+  "data/cohort_em.csv",
+  "data/cohort_psm.csv"
+)
+
+# read cohorts from .csv
+z <- map(
+  .x = y,
+  ~ read_csv(
+    file = .x,
+    col_types = cols(
+      treatment = col_factor(levels = c('eylea', 'avastin'))
+    ))
+)
+
+# name each element of list
+names(z) <- c('nc', 'iptw', 'em', 'psm')
+
+# extract each elelment of list as tbl
+nc <- z %>% pluck("nc")
+
+iptw <- z %>% pluck("iptw")
+  
+em <- z %>% pluck("em")
+
+psm <- z %>% pluck("psm")
+```
+  
+```{r}
+# source fnc
+source("fnc/table_one.R")
+```
+
+# nc
+
+```{r}
+table_one(nc) %>% 
+  knitr::kable()
+```
+
+# iptw
+
+Calculating the weighted baseline characteristics for iptw cohort is not straightforward and therefore we will rely on available solutions.
+
+```{r}
+iptw <- iptw %>%
+  # categorical vars must be as factors
+  mutate(gender = factor(gender, levels = c('M', 'F')))
+
+iptw.svy <- survey::svydesign(
+  ids = ~0, # no hierachy
+  strata = NULL,
+  weights = iptw$ipw,
+  nest = FALSE,
+  data = iptw
+)
+```
+
+```{r}
+tableone::svyCreateTableOne(
+  vars = c('gender', 'age', 'baseline_etdrs'),
+  strata = 'treatment',
+  data = iptw.svy
+) %>% 
+  print(
+    nonnormal = c('age', 'baseline_etdrs'),
+    contDigits = 0)
+```
+
+```{r}
+# ranges are unaffected
+table_one(iptw) %>% 
+    knitr::kable()
+```
+# em
+
+```{r}
+table_one(em) %>% 
+    knitr::kable()
+```
+
+
+# psm
+
+```{r}
+table_one(psm) %>% 
+    knitr::kable()
+```
+
+# aflibercept (before aligning protocols)
+
+```{r}
+# configure connection to mysql
+source("src/kale_mysql.R")
+```
+
+```{sql connection = kale, output.var = 'all.eylea'}
+-- output.var = 'all.eylea'
+SELECT patient_eye AS id,
+treatment,
+age_at_baseline AS age,
+gender,
+baseline_va AS baseline_etdrs
+FROM amd_synthetic_eylea_arm_study_table;
+```
+
+```{r}
+# correct for if 1/60 snellen meters
+all.eylea$baseline_etdrs[all.eylea$baseline_etdrs == -4] <- 4
+
+# correct for it cf
+all.eylea$baseline_etdrs[all.eylea$baseline_etdrs == -15] <- 2
+
+# correct for if gm, lp, or nlp
+all.eylea$baseline_etdrs[all.eylea$baseline_etdrs <= -30] <- 0
+
+all.eylea %>% 
+  as_tibble() %>% 
+  na.omit() %>% 
+  table_one()
+```
+

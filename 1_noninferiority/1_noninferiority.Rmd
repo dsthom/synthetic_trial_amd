@@ -1,0 +1,284 @@
+---
+title: "noninferiority"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(broom)
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+```
+
+# read_data
+
+```{r}
+# create list of filenames to read from
+y <- list(
+  "../data/cohort_nc.csv",
+  "../data/cohort_iptw.csv",
+  "../data/cohort_em.csv",
+  "../data/cohort_psm.csv"
+)
+
+# read cohorts from .csv
+z <- map(
+  .x = y,
+  ~ read_csv(
+    file = .x,
+    col_types = cols(
+      treatment = col_factor(levels = c('eylea', 'avastin'))
+    ))
+)
+
+# name each element of list
+names(z) <- c('nc', 'iptw', 'em', 'psm')
+```
+
+
+```{r}
+# impute negative ETDRS
+
+impute_neg_etdrs <- function(x){
+    # -4 is in fact etdrs 4 (1/60 snellen meters)
+  x$study_exit_va[x$study_exit_va == -4] <- 4
+  
+  # impute counting fingers (-15 converted ETDRS) to 2
+  x$study_exit_va[x$study_exit_va == -15] <- 2
+  
+  # impute hand motion (-30), light perception (-50), and no light perception (-165) to 0
+  x$study_exit_va[x$study_exit_va < 0] <- 0
+  
+  x
+}
+```
+
+```{r}
+mean_change <- function(x){
+  
+  output <- x %>% 
+    mutate(va_change = study_exit_va - baseline_etdrs)
+  
+  output
+}
+```
+
+```{r}
+# apply impute_neg_etdrs & mean_change to each tbl
+z <- map(
+  .x = z,
+  ~ impute_neg_etdrs(x = .x)
+  ) 
+
+# apply mean_change to each tbl
+z <- map(
+  .x = z,
+  ~ mean_change(x = .x)
+  )
+```
+
+```{r}
+# extract each elelment of list as tbl
+nc <- z %>% pluck("nc")
+
+iptw <- z %>% pluck("iptw")
+  
+em <- z %>% pluck("em")
+
+psm <- z %>% pluck("psm")
+```
+
+# nc
+
+```{r}
+# visualise outcome distirbution
+nc %>% 
+  ggplot(aes(x = va_change, fill = treatment)) +
+    geom_density(alpha = 0.5)
+```
+
+```{r}
+# mean difference
+lm(
+  va_change ~ 1 + treatment,
+  data = nc
+) %>% 
+  coef()
+```
+
+```{r}
+# two-sided confidence intervals
+lm(
+  va_change ~ 1 + treatment,
+  data = nc
+) %>% 
+  confint()
+```
+
+
+# iptw
+
+```{r}
+# visualise outcome distirbution
+iptw %>% 
+  ggplot(aes(x = va_change, weight = ipw, fill = treatment)) +
+    geom_density(alpha = 0.5)
+```
+
+```{r}
+# mean difference
+lm(
+  va_change ~ 1 + treatment,
+  data = iptw,
+  weights = ipw
+) %>% 
+  coef()
+```
+
+```{r}
+# two-sided confidence intervals
+lm(
+  va_change ~ 1 + treatment,
+  data = iptw,
+  weights = ipw
+) %>% 
+  confint()
+```
+
+# em
+
+```{r}
+# visualise outcome distirbution
+em %>% 
+  ggplot(aes(x = va_change, fill = treatment)) +
+    geom_density(alpha = 0.5)
+```
+
+```{r}
+# mean difference
+lm(
+  va_change ~ 1 + treatment,
+  data = em
+) %>% 
+  coef()
+```
+
+```{r}
+# two-sided confidence intervals
+lm(
+  va_change ~ 1 + treatment,
+  data = em
+) %>% 
+  confint()
+```
+# psm
+
+```{r}
+# visualise outcome distirbution
+psm %>% 
+  ggplot(aes(x = va_change, fill = treatment)) +
+    geom_density(alpha = 0.5)
+```
+
+```{r}
+# mean difference
+lm(
+  va_change ~ 1 + treatment,
+  data = psm
+) %>% 
+  coef()
+```
+
+```{r}
+# two-sided confidence intervals
+lm(
+  va_change ~ 1 + treatment,
+  data = psm
+) %>% 
+  confint()
+```
+
+# forest_plot
+
+```{r}
+# values pulled from linear models
+ni <- tribble(
+  ~ method, ~ mean_difference, ~ lo95, ~ hi95,
+  "NC", 3.235762, -0.5063099, 6.977835,
+  "IPTW", 3.256231, -0.5063099, 6.977835,
+  "EM", 5.642857, -1.995181, 13.280896,
+  "PSM", -0.06153846, -5.323452, 5.200375
+) %>% 
+  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")))
+```
+
+```{r}
+# set default ggplot theme
+courier_bw <- theme_classic() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom",
+        axis.text.y = element_text(
+          face = "bold", 
+          size = 14,
+          hjust = 0.5),
+        axis.ticks = element_blank(),
+        axis.line.y = element_blank())
+
+theme_set(courier_bw)
+
+ni %>% 
+  ggplot(aes(x = mean_difference, y = method)) +
+  geom_point(
+    size = 6,
+    shape = 18) +
+  labs(
+    x = "Mean difference\n(95% Confidence Interval)",
+    y = NULL
+  ) +
+  geom_vline(
+    xintercept = -4,
+    linetype = "dashed",
+    colour = "grey"
+  ) +
+  geom_errorbarh(aes(
+    xmin = lo95,
+    xmax = hi95,
+    height = 0
+  )) +
+  geom_text(aes(
+    family = 'Courier',
+    label = paste(round(mean_difference, 1), " (", round(lo95, 1), "-", round(hi95, 1), ")",
+                  sep = "")),
+    parse = TRUE,
+    nudge_y = -0.2) +
+  scale_x_continuous(breaks = seq(- 6, 14, 2))
+```
+
+```{r}
+# export as .tiff (half-page fig)
+ggsave(
+  filename = "fig_3.tiff",
+  plot = last_plot(),
+  device = "tiff",
+  path = "../figs",
+  width = 86,
+  height = 100,
+  units = "mm",
+  dpi = 300
+)
+```

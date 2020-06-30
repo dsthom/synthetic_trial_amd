@@ -1,0 +1,251 @@
+---
+title: "outcome_regression"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(broom)
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom")
+
+theme_set(courier_bw)
+```
+
+# read_data
+
+```{r}
+# create list of filenames to read from
+y <- list(
+  "../data/cohort_nc.csv",
+  "../data/cohort_iptw.csv",
+  "../data/cohort_em.csv",
+  "../data/cohort_psm.csv"
+)
+
+# read cohorts from .csv
+z <- map(
+  .x = y,
+  ~ read_csv(
+    file = .x,
+    col_types = cols(
+      treatment = col_factor(levels = c('eylea', 'avastin'))
+    ))
+)
+
+# name each element of list
+names(z) <- c('nc', 'iptw', 'em', 'psm')
+
+# extract each elelment of list as tbl
+nc <- z %>% pluck("nc")
+
+iptw <- z %>% pluck("iptw")
+  
+em <- z %>% pluck("em")
+
+psm <- z %>% pluck("psm")
+```
+
+# source_fncs
+
+```{r}
+# source code to pre-process, run, and post-process glm (for em + psm)
+source("../fnc/va_glm.R")
+```
+
+# nc
+
+```{r}
+nc <- nc %>% 
+  # add null weights
+  mutate(weights = 1) %>% 
+  va_glm()
+```
+
+```{r}
+# ≥ 15 letters
+nc[[6]][[1]]
+```
+
+```{r}
+# ≥ 10 letetrs 
+nc[[6]][[2]]
+```
+
+```{r}
+# > -15 letters
+nc[[6]][[3]]
+```
+
+# iptw
+
+```{r}
+iptw <- iptw %>% 
+  va_glm(weights = iptw$ipw)
+```
+
+```{r}
+# ≥ 15 letters
+iptw[[6]][[1]]
+```
+
+```{r}
+# ≥ 10 letetrs 
+iptw[[6]][[2]]
+```
+
+```{r}
+# > -15 letters
+iptw[[6]][[3]]
+```
+
+# em
+
+```{r}
+em <- em %>% 
+  # add null weights
+  mutate(weights = 1) %>% 
+  va_glm()
+```
+
+```{r}
+# ≥ 15 letters
+em[[6]][[1]]
+```
+
+```{r}
+# ≥ 10 letetrs 
+em[[6]][[2]]
+```
+
+```{r}
+# > -15 letters
+em[[6]][[3]]
+```
+
+# psm
+
+```{r}
+psm <- psm %>% 
+  # add null weights
+  mutate(weights = 1) %>% 
+  va_glm()
+```
+
+```{r}
+# ≥ 15 letters
+psm[[6]][[1]]
+```
+
+```{r}
+# ≥ 10 letters 
+psm[[6]][[2]]
+```
+
+```{r}
+# > -15 letters
+psm[[6]][[3]]
+```
+
+# forest_plot
+
+```{r}
+# set default ggplot theme
+courier_bw <- theme_classic() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom",
+        axis.text.y = element_text(
+          face = "bold", 
+          size = 14,
+          hjust = 0.5),
+        axis.ticks = element_blank(),
+        axis.line.y = element_blank())
+
+theme_set(courier_bw)
+```
+
+```{r}
+#  read data
+estimands <- tribble(
+  ~method, ~outcome,        ~or,  ~lo95, ~hi95, ~p_value,
+  'NC',    '≥ 15 letters',  1.50, 0.87,  2.50,  0.130,
+  'IPTW',  '≥ 15 letters',  1.41, 0.96,  2.03,  0.076,
+  'EM',    '≥ 15 letters',  2.24, 0.81,  6.66,  0.129,
+  'PSM',   '≥ 15 letters',  0.98, 0.47,  2.05,  0.951,
+  'NC',    '≥ 10 letters',  1.47, 0.89,  2.39,  0.127,
+  'IPTW',  '≥ 10 letters',  1.45, 1.02,  2.05,  0.035,
+  'EM',    '≥ 10 letters',  1.36, 0.56,  3.35,  0.498,
+  'PSM',   '≥ 10 letters',  1.17, 0.59,  2.36,  0.650,
+  'NC',    '> -15 letters', 1.20, 0.56,  3.12,  0.676,
+  'IPTW',  '> -15 letters', 1.21, 0.70,  2.29,  0.528,
+  'EM',    '> -15 letters', 1.64, 0.53,  5.35,  0.395,
+  'PSM',   '> -15 letters', 0.66, 0.16,  2.41,  0.529
+)
+```
+
+```{r}
+# plot, faceted by adjustment
+estimands %>% 
+  mutate(
+    method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")),
+    outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '> -15 letters'))) %>% 
+ggplot(aes(x = or, y = method)) +
+  facet_grid(.~outcome) +
+  # log scale
+  scale_x_log10(breaks = c(0.25, 0.5, 1, 2, 4)) +
+  # add line of no effect
+  geom_vline(
+    xintercept = 1,
+    linetype = "dashed",
+    colour = 'grey'
+  ) +
+  # add confidence intervals
+  geom_errorbarh(aes(
+    xmin = lo95,
+    xmax = hi95,
+    height = 0
+  )) +
+  # add point estimates
+  geom_point(
+    size = 7,
+    shape = 18) +
+  # add text for point estimates and confidence intervals
+  geom_text(aes(
+    family = 'Courier',
+    label = paste(or, " (", lo95, "-", hi95, ")",
+                  sep = "")),
+    parse = TRUE,
+    nudge_y = -0.2) +
+  # ammend visuals
+  labs(
+    x = "Odds Ratio (95% Confidence Interval)",
+    y = NULL) +
+  theme(legend.position = "none")
+```
+
+```{r}
+# export as .tiff
+ggsave(
+  filename = "fig_4.tiff",
+  plot = last_plot(),
+  device = "tiff",
+  path = "../figs",
+  width = 178,
+  height = 100,
+  units = "mm",
+  dpi = 300
+)
+```
