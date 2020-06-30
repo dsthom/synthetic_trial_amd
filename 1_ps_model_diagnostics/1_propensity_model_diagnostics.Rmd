@@ -28,7 +28,7 @@ theme_set(courier_bw)
 
 ```{r}
 # source propensity model
-source("src/propensity_model.R")
+source("../src/propensity_model.R")
 ```
 
 ```{r}
@@ -44,8 +44,6 @@ equatiomatic::extract_eq(propensity_model,
                          terms_per_line = 3,
                          operator_location = "start") %>% 
   equatiomatic::preview()
-# TO DO: AUTOMATIC SAVE OF IMAGE TO /FIGURES OR EXORT AS LATEX FORMULA.
-
 ```
 
 ```{r}
@@ -73,8 +71,11 @@ scale_fill_manual(values = c("#FF6B6B", "#63E8DF"),
 scale_x_continuous(breaks = seq(0, 1, 0.1),
                    limits = c(0, 1))
 ```
-```
 
 ```{r}
 # export to /figs
+```
+
+```{r info, echo = FALSE}
+print(sessionInfo())
 ```

@@ -249,3 +249,7 @@ ggsave(
   dpi = 300
 )
 ```
+
+```{r info, echo = FALSE}
+print(sessionInfo())
+```

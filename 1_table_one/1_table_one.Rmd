@@ -29,10 +29,10 @@ theme_set(courier_bw)
 ```{r}
 # create list of filenames to read from
 y <- list(
-  "data/cohort_nc.csv",
-  "data/cohort_iptw.csv",
-  "data/cohort_em.csv",
-  "data/cohort_psm.csv"
+  "../data/cohort_nc.csv",
+  "../data/cohort_iptw.csv",
+  "../data/cohort_em.csv",
+  "../data/cohort_psm.csv"
 )
 
 # read cohorts from .csv
@@ -60,7 +60,7 @@ psm <- z %>% pluck("psm")
   
 ```{r}
 # source fnc
-source("fnc/table_one.R")
+source("../fnc/table_one.R")
 ```
 
 # nc
@@ -123,7 +123,7 @@ table_one(psm) %>%
 
 ```{r}
 # configure connection to mysql
-source("src/kale_mysql.R")
+source("../src/kale_mysql.R")
 ```
 
 ```{sql connection = kale, output.var = 'all.eylea'}
@@ -152,3 +152,6 @@ all.eylea %>%
   table_one()
 ```
 
+```{r info, echo = FALSE}
+print(sessionInfo())
+```
