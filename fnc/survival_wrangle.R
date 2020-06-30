@@ -30,10 +30,10 @@ survival_wrangle <- function(
       greater_or_eq_10,
       last_va_week
     )
-  } else if (event == '<=15') {
+  } else if (event == '<=-15') {
     y <- y %>% select(
       id,
-      greater_or_eq_neg_15,
+      less_or_eq_neg_15,
       last_va_week
     )
   } else {
