@@ -168,7 +168,7 @@ SET p.study_exit_54 = (
  FROM nvAMD_visual_acuity v
  WHERE p.PatientID = v.PatientID AND
        p.EyeCode = v.EyeCode AND
-       v.max_etdrs != -10000
+       v.max_etdrs != -10000 AND
        FLOOR(DATEDIFF(v.EncounterDate, p.baseline_eylea_date) / 7) BETWEEN 50 AND 58
  ORDER BY SQRT(POWER(DATEDIFF(v.EncounterDate, estimated_study_exit), 2)) 
  LIMIT 1
@@ -202,7 +202,7 @@ SET p.study_exit_lo = (
   FROM nvAMD_visual_acuity v
   WHERE p.PatientID = v.PatientID AND 
         p.EyeCode = v.EyeCode AND 
-        v.max_etdrs != -10000
+        v.max_etdrs != -10000 AND
         v.EncounterDate >= p.baseline_eylea_date AND
         v.EncounterDate <= p.estimated_study_exit
   LIMIT 1
