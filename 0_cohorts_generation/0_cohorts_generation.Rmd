@@ -8,10 +8,10 @@ output: github_document
 
 Run script once only to generate cohorts in order of:
 
-* read abc avastin arm from .csv and synthetic eyles arm from mysql server
+* read abc avastin arm from .csv and synthetic eylea arm from mysql server
 * assemble cohorts for nc, iptw, em, and psm
 * export cohorts to .csv (for use in outcome regression analysis)
-* export cohrots to mysql server (for use in survival analysis)
+* export cohorts to mysql server (for use in survival analysis)
 
 ```{r setup, include=FALSE}
 # configure Rmd chunks
