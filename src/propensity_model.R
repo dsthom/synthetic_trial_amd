@@ -2,7 +2,7 @@
 
 # read data locally 
 
-abc.all <- read_csv("data/abc_patient_details.csv",
+abc.all <- read_csv("../data/abc_patient_details.csv",
                            col_types = cols(
                              id = col_character(),
                              age_at_baseline = col_integer(),
