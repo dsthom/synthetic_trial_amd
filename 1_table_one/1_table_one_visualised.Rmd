@@ -1,0 +1,139 @@
+---
+title: "table_one_visualised"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(broom)
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom",
+        strip.background = element_rect(
+          colour = "black", 
+          fill = "white",
+          size = 0.5))
+
+theme_set(courier_bw)
+```
+
+# read_data
+
+```{r}
+# create list of filenames to read from
+y <- list(
+  "../data/cohort_nc.csv",
+  "../data/cohort_iptw.csv",
+  "../data/cohort_em.csv",
+  "../data/cohort_psm.csv"
+)
+
+# read cohorts from .csv
+z <- map(
+  .x = y,
+  ~ read_csv(
+    file = .x,
+    col_types = cols(
+      treatment = col_factor(levels = c('eylea', 'avastin'))
+    ))
+)
+
+# name each element of list
+names(z) <- c('nc', 'iptw', 'em', 'psm')
+
+# add var to identify each cohort when lists are merged
+z <- map2(
+  .x = z,
+  .y = list('nc', 'iptw', 'em', 'psm'),
+  ~ mutate(
+    .x,
+    cohort = .y
+  )
+)
+
+# add weight var (ipw weights will be updated later)
+z <- map(
+  .x = z,
+  ~ mutate(
+    .x,
+    weight = 1)
+)
+
+# select only confounders
+z <- map(
+  .x = z,
+  ~ select(.x, id, gender, age, baseline_etdrs, cohort, treatment, weight)
+)
+
+# combine individual elements into a singl df
+zz <- do.call(rbind.data.frame, z)
+```
+
+```{r}
+# pivot longer
+zzz <- zz %>% 
+  pivot_longer(
+    cols = c("age", "baseline_etdrs"),
+    names_to = "var",
+    values_to = "unit"
+  )
+```
+
+```{r}
+# assign weights for iptw
+iptw <- read_csv("../data/cohort_iptw.csv") %>% 
+  select(id, gender, treatment, age, baseline_etdrs, weight = ipw) %>% 
+  mutate(cohort = "iptw") %>% 
+  pivot_longer(
+    cols = age:baseline_etdrs,
+    names_to = "var",
+    values_to = "unit"
+  )
+
+zzz <- zzz %>% 
+  filter(cohort != "iptw") %>% 
+  bind_rows(iptw)
+```
+
+```{r}
+# plot binary var
+sex <- tribble(
+  ~ perc_f, ~ cohort, ~treatment,
+  0.63, "nc", "eylea",
+  0.60, "nc", "avastin",
+  0.63, "iptw", "eylea",
+  0.62, "iptw", "avastin",
+  0.67, "em", "eylea",
+  0.67, "em", "avastin",
+  0.62, "psm", "eylea",
+  0.60, "psm", "avastin"
+)
+  
+sex %>% 
+  mutate(treatment = factor(treatment, levels = c("eylea", "avastin"))) %>% 
+  ggplot(aes(x = treatment, y = perc_f, fill = treatment)) +
+  facet_grid(cohort ~.) +
+  geom_bar(stat = "identity")
+  
+
+```
+
+```{r}
+# plot continuous vars
+```
+
+  ggplot(aes(x = cohort, weight = weight, fill = treatment)) +
+  facet_grid(cohort ~.) +
+  geom_bar(position = "fill")
