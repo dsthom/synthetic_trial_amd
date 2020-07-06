@@ -1,7 +1,7 @@
 noninferiority
 ================
 Darren S Thomas
-30 June, 2020
+06 July, 2020
 
 # read\_data
 
@@ -287,7 +287,7 @@ ni %>%
 ``` r
 # export as .tiff (half-page fig)
 ggsave(
-  filename = "fig_3.tiff",
+  filename = "fig_2.tiff",
   plot = last_plot(),
   device = "tiff",
   path = "../figs",

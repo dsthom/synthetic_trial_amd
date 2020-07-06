@@ -1,7 +1,7 @@
 1\_survival\_analysis
 ================
 Darren S Thomas
-30 June, 2020
+06 July, 2020
 
 # read data
 
@@ -303,7 +303,7 @@ a <- arrange_ggsurvplots(
 ``` r
 # export as .tiff
 ggsave(
-  filename = "fig_5.tiff",
+  filename = "fig_4.tiff",
   plot = a,
   device = "tiff",
   path = "../figs",

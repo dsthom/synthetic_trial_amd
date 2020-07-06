@@ -142,7 +142,7 @@ zz %>%
 ```{r}
 # export as .tiff
 ggsave(
-  filename = "fig_2.tiff",
+  filename = "exchangeability.tiff",
   plot = last_plot(),
   device = "tiff",
   path = "../figs",

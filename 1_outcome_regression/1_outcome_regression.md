@@ -1,7 +1,7 @@
 outcome\_regression
 ================
 Darren S Thomas
-30 June, 2020
+06 July, 2020
 
 # read\_data
 
@@ -291,7 +291,7 @@ ggplot(aes(x = or, y = method)) +
 ``` r
 # export as .tiff
 ggsave(
-  filename = "fig_4.tiff",
+  filename = "fig_3.tiff",
   plot = last_plot(),
   device = "tiff",
   path = "../figs",

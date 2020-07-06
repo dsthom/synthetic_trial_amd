@@ -1,7 +1,7 @@
 exchangeability
 ================
 Darren S Thomas
-30 June, 2020
+06 July, 2020
 
 # read\_data
 
@@ -118,7 +118,7 @@ zz %>%
 ``` r
 # export as .tiff
 ggsave(
-  filename = "fig_2.tiff",
+  filename = "exchangeability.tiff",
   plot = last_plot(),
   device = "tiff",
   path = "../figs",

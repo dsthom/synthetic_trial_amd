@@ -272,7 +272,7 @@ ni %>%
 ```{r}
 # export as .tiff (half-page fig)
 ggsave(
-  filename = "fig_3.tiff",
+  filename = "fig_2.tiff",
   plot = last_plot(),
   device = "tiff",
   path = "../figs",
