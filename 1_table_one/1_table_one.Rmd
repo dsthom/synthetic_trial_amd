@@ -104,6 +104,7 @@ tableone::svyCreateTableOne(
 table_one(iptw) %>% 
     knitr::kable()
 ```
+
 # em
 
 ```{r}
@@ -149,9 +150,11 @@ all.eylea$baseline_etdrs[all.eylea$baseline_etdrs <= -30] <- 0
 all.eylea %>% 
   as_tibble() %>% 
   na.omit() %>% 
-  table_one()
+  table_one() %>% 
+  knitr::kable()
 ```
 
 ```{r info, echo = FALSE}
 print(sessionInfo())
 ```
+

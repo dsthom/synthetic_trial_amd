@@ -1,7 +1,7 @@
 0.1\_table\_one
 ================
 Darren S Thomas
-30 June, 2020
+06 July, 2020
 
 # read\_data
 
@@ -49,17 +49,18 @@ table_one(nc) %>%
   knitr::kable()
 ```
 
-    ## # A tibble: 2 x 11
-    ##   treatment female_n female_prop age_median age_iqr age_min age_max va_median
-    ##   <fct>        <int>       <dbl>      <dbl>   <dbl>   <dbl>   <dbl>     <dbl>
-    ## 1 eylea         2758        0.63         81      11      51     102        55
-    ## 2 avastin         39        0.6          79      12      58      91        50
-    ## # … with 3 more variables: va_iqr <dbl>, va_min <dbl>, va_max <dbl>
+    ## # A tibble: 2 x 15
+    ##   treatment female_n female_prop age_mean age_sd age_median age_iqr age_min
+    ##   <fct>        <int>       <dbl>    <dbl>  <dbl>      <dbl>   <dbl>   <dbl>
+    ## 1 eylea         2758        0.63       80      8         81      11      51
+    ## 2 avastin         39        0.6        79      8         79      12      58
+    ## # … with 7 more variables: age_max <dbl>, va_mean <dbl>, va_sd <dbl>,
+    ## #   va_median <dbl>, va_iqr <dbl>, va_min <dbl>, va_max <dbl>
 
-| treatment | female\_n | female\_prop | age\_median | age\_iqr | age\_min | age\_max | va\_median | va\_iqr | va\_min | va\_max |
-| :-------- | --------: | -----------: | ----------: | -------: | -------: | -------: | ---------: | ------: | ------: | ------: |
-| eylea     |      2758 |         0.63 |          81 |       11 |       51 |      102 |         55 |   23.75 |      25 |      73 |
-| avastin   |        39 |         0.60 |          79 |       12 |       58 |       91 |         50 |   18.00 |      25 |      70 |
+| treatment | female\_n | female\_prop | age\_mean | age\_sd | age\_median | age\_iqr | age\_min | age\_max | va\_mean | va\_sd | va\_median | va\_iqr | va\_min | va\_max |
+| :-------- | --------: | -----------: | --------: | ------: | ----------: | -------: | -------: | -------: | -------: | -----: | ---------: | ------: | ------: | ------: |
+| eylea     |      2758 |         0.63 |        80 |       8 |          81 |       11 |       51 |      102 |       52 |     13 |         55 |   23.75 |      25 |      73 |
+| avastin   |        39 |         0.60 |        79 |       8 |          79 |       12 |       58 |       91 |       51 |     12 |         50 |   18.00 |      25 |      70 |
 
 # iptw
 
@@ -104,35 +105,38 @@ table_one(iptw) %>%
     knitr::kable()
 ```
 
-    ## # A tibble: 2 x 11
-    ##   treatment female_n female_prop age_median age_iqr age_min age_max va_median
-    ##   <fct>        <int>       <dbl>      <dbl>   <dbl>   <dbl>   <dbl>     <dbl>
-    ## 1 eylea         2623        0.63         80      10      51     102        54
-    ## 2 avastin         39        0.6          79      12      58      91        50
-    ## # … with 3 more variables: va_iqr <dbl>, va_min <dbl>, va_max <dbl>
+    ## # A tibble: 2 x 15
+    ##   treatment female_n female_prop age_mean age_sd age_median age_iqr age_min
+    ##   <fct>        <int>       <dbl>    <dbl>  <dbl>      <dbl>   <dbl>   <dbl>
+    ## 1 eylea         2623        0.63       80      7         80      10      51
+    ## 2 avastin         39        0.6        79      8         79      12      58
+    ## # … with 7 more variables: age_max <dbl>, va_mean <dbl>, va_sd <dbl>,
+    ## #   va_median <dbl>, va_iqr <dbl>, va_min <dbl>, va_max <dbl>
 
-| treatment | female\_n | female\_prop | age\_median | age\_iqr | age\_min | age\_max | va\_median | va\_iqr | va\_min | va\_max |
-| :-------- | --------: | -----------: | ----------: | -------: | -------: | -------: | ---------: | ------: | ------: | ------: |
-| eylea     |      2623 |         0.63 |          80 |       10 |       51 |      102 |         54 |      22 |      25 |      73 |
-| avastin   |        39 |         0.60 |          79 |       12 |       58 |       91 |         50 |      18 |      25 |      70 |
-| \# em     |           |              |             |          |          |          |            |         |         |         |
+| treatment | female\_n | female\_prop | age\_mean | age\_sd | age\_median | age\_iqr | age\_min | age\_max | va\_mean | va\_sd | va\_median | va\_iqr | va\_min | va\_max |
+| :-------- | --------: | -----------: | --------: | ------: | ----------: | -------: | -------: | -------: | -------: | -----: | ---------: | ------: | ------: | ------: |
+| eylea     |      2623 |         0.63 |        80 |       7 |          80 |       10 |       51 |      102 |       52 |     13 |         54 |      22 |      25 |      73 |
+| avastin   |        39 |         0.60 |        79 |       8 |          79 |       12 |       58 |       91 |       51 |     12 |         50 |      18 |      25 |      70 |
+
+# em
 
 ``` r
 table_one(em) %>% 
     knitr::kable()
 ```
 
-    ## # A tibble: 2 x 11
-    ##   treatment female_n female_prop age_median age_iqr age_min age_max va_median
-    ##   <fct>        <int>       <dbl>      <dbl>   <dbl>   <dbl>   <dbl>     <dbl>
-    ## 1 eylea           28        0.67         80      11      66      91      53.5
-    ## 2 avastin         28        0.67         80      11      66      91      53.5
-    ## # … with 3 more variables: va_iqr <dbl>, va_min <dbl>, va_max <dbl>
+    ## # A tibble: 2 x 15
+    ##   treatment female_n female_prop age_mean age_sd age_median age_iqr age_min
+    ##   <fct>        <int>       <dbl>    <dbl>  <dbl>      <dbl>   <dbl>   <dbl>
+    ## 1 eylea           28        0.67       80      6         80      11      66
+    ## 2 avastin         28        0.67       80      6         80      11      66
+    ## # … with 7 more variables: age_max <dbl>, va_mean <dbl>, va_sd <dbl>,
+    ## #   va_median <dbl>, va_iqr <dbl>, va_min <dbl>, va_max <dbl>
 
-| treatment | female\_n | female\_prop | age\_median | age\_iqr | age\_min | age\_max | va\_median | va\_iqr | va\_min | va\_max |
-| :-------- | --------: | -----------: | ----------: | -------: | -------: | -------: | ---------: | ------: | ------: | ------: |
-| eylea     |        28 |         0.67 |          80 |       11 |       66 |       91 |       53.5 |   17.75 |      25 |      70 |
-| avastin   |        28 |         0.67 |          80 |       11 |       66 |       91 |       53.5 |   17.75 |      25 |      70 |
+| treatment | female\_n | female\_prop | age\_mean | age\_sd | age\_median | age\_iqr | age\_min | age\_max | va\_mean | va\_sd | va\_median | va\_iqr | va\_min | va\_max |
+| :-------- | --------: | -----------: | --------: | ------: | ----------: | -------: | -------: | -------: | -------: | -----: | ---------: | ------: | ------: | ------: |
+| eylea     |        28 |         0.67 |        80 |       6 |          80 |       11 |       66 |       91 |       52 |     12 |       53.5 |   17.75 |      25 |      70 |
+| avastin   |        28 |         0.67 |        80 |       6 |          80 |       11 |       66 |       91 |       52 |     12 |       53.5 |   17.75 |      25 |      70 |
 
 # psm
 
@@ -141,17 +145,18 @@ table_one(psm) %>%
     knitr::kable()
 ```
 
-    ## # A tibble: 2 x 11
-    ##   treatment female_n female_prop age_median age_iqr age_min age_max va_median
-    ##   <fct>        <int>       <dbl>      <dbl>   <dbl>   <dbl>   <dbl>     <dbl>
-    ## 1 eylea           40        0.62         79      11      55      93        55
-    ## 2 avastin         39        0.6          79      12      58      91        50
-    ## # … with 3 more variables: va_iqr <dbl>, va_min <dbl>, va_max <dbl>
+    ## # A tibble: 2 x 15
+    ##   treatment female_n female_prop age_mean age_sd age_median age_iqr age_min
+    ##   <fct>        <int>       <dbl>    <dbl>  <dbl>      <dbl>   <dbl>   <dbl>
+    ## 1 eylea           40        0.62       78      8         79      11      55
+    ## 2 avastin         39        0.6        79      8         79      12      58
+    ## # … with 7 more variables: age_max <dbl>, va_mean <dbl>, va_sd <dbl>,
+    ## #   va_median <dbl>, va_iqr <dbl>, va_min <dbl>, va_max <dbl>
 
-| treatment | female\_n | female\_prop | age\_median | age\_iqr | age\_min | age\_max | va\_median | va\_iqr | va\_min | va\_max |
-| :-------- | --------: | -----------: | ----------: | -------: | -------: | -------: | ---------: | ------: | ------: | ------: |
-| eylea     |        40 |         0.62 |          79 |       11 |       55 |       93 |         55 |      18 |      27 |      71 |
-| avastin   |        39 |         0.60 |          79 |       12 |       58 |       91 |         50 |      18 |      25 |      70 |
+| treatment | female\_n | female\_prop | age\_mean | age\_sd | age\_median | age\_iqr | age\_min | age\_max | va\_mean | va\_sd | va\_median | va\_iqr | va\_min | va\_max |
+| :-------- | --------: | -----------: | --------: | ------: | ----------: | -------: | -------: | -------: | -------: | -----: | ---------: | ------: | ------: | ------: |
+| eylea     |        40 |         0.62 |        78 |       8 |          79 |       11 |       55 |       93 |       53 |     12 |         55 |      18 |      27 |      71 |
+| avastin   |        39 |         0.60 |        79 |       8 |          79 |       12 |       58 |       91 |       51 |     12 |         50 |      18 |      25 |      70 |
 
 # aflibercept (before aligning protocols)
 
@@ -183,14 +188,20 @@ all.eylea$baseline_etdrs[all.eylea$baseline_etdrs <= -30] <- 0
 all.eylea %>% 
   as_tibble() %>% 
   na.omit() %>% 
-  table_one()
+  table_one() %>% 
+  knitr::kable()
 ```
 
-    ## # A tibble: 1 x 11
-    ##   treatment female_n female_prop age_median age_iqr age_min age_max va_median
-    ##   <chr>        <int>       <dbl>      <dbl>   <dbl>   <int>   <int>     <dbl>
-    ## 1 eylea        15860        0.63         81      11      16     103        60
-    ## # … with 3 more variables: va_iqr <dbl>, va_min <dbl>, va_max <dbl>
+    ## # A tibble: 1 x 15
+    ##   treatment female_n female_prop age_mean age_sd age_median age_iqr age_min
+    ##   <chr>        <int>       <dbl>    <dbl>  <dbl>      <dbl>   <dbl>   <int>
+    ## 1 eylea        15860        0.63       80      8         81      11      16
+    ## # … with 7 more variables: age_max <int>, va_mean <dbl>, va_sd <dbl>,
+    ## #   va_median <dbl>, va_iqr <dbl>, va_min <dbl>, va_max <dbl>
+
+| treatment | female\_n | female\_prop | age\_mean | age\_sd | age\_median | age\_iqr | age\_min | age\_max | va\_mean | va\_sd | va\_median | va\_iqr | va\_min | va\_max |
+| :-------- | --------: | -----------: | --------: | ------: | ----------: | -------: | -------: | -------: | -------: | -----: | ---------: | ------: | ------: | ------: |
+| eylea     |     15860 |         0.63 |        80 |       8 |          81 |       11 |       16 |      103 |       56 |     17 |         60 |      24 |       0 |     100 |
 
     ## R version 3.6.0 (2019-04-26)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
