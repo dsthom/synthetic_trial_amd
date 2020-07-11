@@ -103,14 +103,45 @@ em <- z %>% pluck("em")
 psm <- z %>% pluck("psm")
 ```
 
-# nc
+# outcome_distributions
 
 ```{r}
-# visualise outcome distirbution
-nc %>% 
-  ggplot(aes(x = va_change, fill = treatment)) +
-    geom_density(alpha = 0.5)
+# combine elements of list as tbl
+z.tbl <- z %>% 
+  bind_rows(.id = "cohort") %>% 
+  mutate(ipw = if_else(
+    cohort %in% c("em", "nc", "psm"),
+    1,
+    ipw
+  ))
 ```
+
+```{r}
+# checkout outcome distirbution
+z.tbl %>% 
+  ggplot(aes(x = treatment, y = va_change, weight = ipw, colour = treatment)) +
+  facet_wrap(~ cohort) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) 
+# moderate negative skew
+```
+
+```{r}
+# try out reciprical + constant transformation
+z.tbl %>% 
+  ggplot(aes(x = treatment, y = 1 / (va_change + 100), weight = ipw, colour = treatment)) +
+  facet_wrap(~ cohort) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))
+  
+```
+
+```{r}
+# summary mean exit va by treatment and cohort (iptw is NOT weighted)
+z.tbl %>% 
+  group_by(cohort, treatment) %>% 
+  summarise(mean_exit_va = round(mean(study_exit_va), 1))
+```
+
+# nc
 
 ```{r}
 # mean difference
@@ -130,15 +161,15 @@ lm(
   confint()
 ```
 
-
-# iptw
-
 ```{r}
-# visualise outcome distirbution
-iptw %>% 
-  ggplot(aes(x = va_change, weight = ipw, fill = treatment)) +
-    geom_density(alpha = 0.5)
+# non-parametric
+wilcox.test(
+  va_change ~ treatment,
+  data = nc,
+  conf.int = TRUE
+)
 ```
+# iptw
 
 ```{r}
 # mean difference
@@ -163,13 +194,6 @@ lm(
 # em
 
 ```{r}
-# visualise outcome distirbution
-em %>% 
-  ggplot(aes(x = va_change, fill = treatment)) +
-    geom_density(alpha = 0.5)
-```
-
-```{r}
 # mean difference
 lm(
   va_change ~ 1 + treatment,
@@ -181,7 +205,7 @@ lm(
 ```{r}
 # two-sided confidence intervals
 lm(
-  va_change ~ 1 + treatment,
+  sqrt(va_change) ~ 1 + treatment,
   data = em
 ) %>% 
   confint()
@@ -189,10 +213,12 @@ lm(
 # psm
 
 ```{r}
-# visualise outcome distirbution
-psm %>% 
-  ggplot(aes(x = va_change, fill = treatment)) +
-    geom_density(alpha = 0.5)
+# non-parametric
+wilcox.test(
+  va_change ~ treatment,
+  data = psm,
+  conf.int = TRUE
+)
 ```
 
 ```{r}
@@ -211,6 +237,21 @@ lm(
   data = psm
 ) %>% 
   confint()
+```
+
+```{r}
+t.test(
+  va_change ~ treatment,
+  data = psm
+)
+```
+
+```{r}
+lm(
+  va_change ~ 1 + treatment,
+  data = psm
+) %>% 
+  performance::check_model()
 ```
 
 # forest_plot
@@ -228,7 +269,39 @@ ni <- tribble(
 ```
 
 ```{r}
-# set default ggplot theme
+# convert to point estimate and confidence intervals to strings (to keep trailing zeros for plot)
+
+to_string <- function(
+  var,
+  n_digits = 1,
+  n_small = 1){
+    
+  as.character(format(round(var, digits = n_digits), nsmall = n_small))
+  
+  }
+
+```
+
+```{r}
+ni <- ni %>% 
+  mutate(
+    mean_difference_lab = to_string(mean_difference),
+    lo95_lab = to_string(lo95),
+    hi95_lab = to_string(hi95),
+    lab = str_c(
+      str_trim(mean_difference_lab), 
+      "(", 
+      str_trim(lo95_lab), 
+      "-", 
+      str_trim(hi95_lab), 
+      ")")
+  )
+```
+
+
+```{r}
+# forest plot
+# set new default ggplot theme
 courier_bw <- theme_classic() +
   theme(text = element_text(family = "Courier"),
         legend.position = "bottom",
@@ -262,9 +335,8 @@ ni %>%
   )) +
   geom_text(aes(
     family = 'Courier',
-    label = paste(round(mean_difference, 1), " (", round(lo95, 1), "-", round(hi95, 1), ")",
-                  sep = "")),
-    parse = TRUE,
+    label = lab),
+    parse = FALSE,
     nudge_y = -0.2) +
   scale_x_continuous(breaks = seq(- 6, 14, 2))
 ```

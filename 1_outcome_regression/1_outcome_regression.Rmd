@@ -179,7 +179,7 @@ theme_set(courier_bw)
 
 ```{r}
 #  read data
-estimands <- tribble(
+sup <- tribble(
   ~method, ~outcome,        ~or,  ~lo95, ~hi95, ~p_value,
   'NC',    '≥ 15 letters',  1.50, 0.87,  2.50,  0.130,
   'IPTW',  '≥ 15 letters',  1.41, 0.96,  2.03,  0.076,
@@ -197,8 +197,41 @@ estimands <- tribble(
 ```
 
 ```{r}
+# convert to point estimate and confidence intervals to strings (to keep trailing zeros for plot)
+
+to_string <- function(
+  var,
+  n_digits = 2,
+  n_small = 2){
+    
+  as.character(format(round(var, digits = n_digits), nsmall = n_small))
+  
+  }
+```
+
+```{r}
+
+sup <- sup %>% 
+  mutate(
+    or_lab = to_string(or),
+    lo95_lab = to_string(lo95),
+    hi95_lab = to_string(hi95),
+    lab = str_c(
+      str_trim(or_lab),
+      "(",
+      str_trim(lo95_lab),
+      "-",
+      str_trim(hi95_lab),
+      ")"
+    )
+  )
+
+```
+
+
+```{r}
 # plot, faceted by adjustment
-estimands %>% 
+sup %>% 
   mutate(
     method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")),
     outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '> -15 letters'))) %>% 
@@ -225,9 +258,8 @@ ggplot(aes(x = or, y = method)) +
   # add text for point estimates and confidence intervals
   geom_text(aes(
     family = 'Courier',
-    label = paste(or, " (", lo95, "-", hi95, ")",
-                  sep = "")),
-    parse = TRUE,
+    label = lab),
+    parse = FALSE,
     nudge_y = -0.2) +
   # ammend visuals
   labs(

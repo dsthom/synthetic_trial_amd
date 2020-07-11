@@ -1,7 +1,7 @@
 outcome\_regression
 ================
 Darren S Thomas
-06 July, 2020
+13 July, 2020
 
 # read\_data
 
@@ -229,7 +229,7 @@ theme_set(courier_bw)
 
 ``` r
 #  read data
-estimands <- tribble(
+sup <- tribble(
   ~method, ~outcome,        ~or,  ~lo95, ~hi95, ~p_value,
   'NC',    '≥ 15 letters',  1.50, 0.87,  2.50,  0.130,
   'IPTW',  '≥ 15 letters',  1.41, 0.96,  2.03,  0.076,
@@ -247,8 +247,38 @@ estimands <- tribble(
 ```
 
 ``` r
+# convert to point estimate and confidence intervals to strings (to keep trailing zeros for plot)
+
+to_string <- function(
+  var,
+  n_digits = 2,
+  n_small = 2){
+    
+  as.character(format(round(var, digits = n_digits), nsmall = n_small))
+  
+  }
+```
+
+``` r
+sup <- sup %>% 
+  mutate(
+    or_lab = to_string(or),
+    lo95_lab = to_string(lo95),
+    hi95_lab = to_string(hi95),
+    lab = str_c(
+      str_trim(or_lab),
+      "(",
+      str_trim(lo95_lab),
+      "-",
+      str_trim(hi95_lab),
+      ")"
+    )
+  )
+```
+
+``` r
 # plot, faceted by adjustment
-estimands %>% 
+sup %>% 
   mutate(
     method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")),
     outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '> -15 letters'))) %>% 
@@ -275,9 +305,8 @@ ggplot(aes(x = or, y = method)) +
   # add text for point estimates and confidence intervals
   geom_text(aes(
     family = 'Courier',
-    label = paste(or, " (", lo95, "-", hi95, ")",
-                  sep = "")),
-    parse = TRUE,
+    label = lab),
+    parse = FALSE,
     nudge_y = -0.2) +
   # ammend visuals
   labs(
@@ -286,7 +315,7 @@ ggplot(aes(x = or, y = method)) +
   theme(legend.position = "none")
 ```
 
-![](1_outcome_regression_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](1_outcome_regression_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
 
 ``` r
 # export as .tiff
@@ -318,7 +347,7 @@ ggsave(
     ## 
     ## other attached packages:
     ##  [1] forcats_0.5.0   stringr_1.4.0   dplyr_1.0.0     purrr_0.3.4    
-    ##  [5] readr_1.3.1     tidyr_1.1.0     tibble_3.0.1    ggplot2_3.3.1  
+    ##  [5] readr_1.3.1     tidyr_1.1.0     tibble_3.0.2    ggplot2_3.3.2  
     ##  [9] tidyverse_1.3.0 broom_0.5.6    
     ## 
     ## loaded via a namespace (and not attached):
@@ -329,7 +358,7 @@ ggsave(
     ## [17] dbplyr_1.4.4     modelr_0.1.8     readxl_1.3.1     lifecycle_0.2.0 
     ## [21] munsell_0.5.0    gtable_0.3.0     cellranger_1.1.0 rvest_0.3.5     
     ## [25] evaluate_0.14    knitr_1.28       fansi_0.4.1      Rcpp_1.0.4.6    
-    ## [29] scales_1.1.1     backports_1.1.7  jsonlite_1.7.0   farver_2.0.3    
+    ## [29] scales_1.1.1     backports_1.1.8  jsonlite_1.7.0   farver_2.0.3    
     ## [33] fs_1.4.1         hms_0.5.3        digest_0.6.25    stringi_1.4.6   
     ## [37] grid_3.6.0       cli_2.0.2        tools_3.6.0      magrittr_1.5    
     ## [41] crayon_1.3.4     pkgconfig_2.0.3  MASS_7.3-51.6    ellipsis_0.3.1  

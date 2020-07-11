@@ -1,7 +1,7 @@
 noninferiority
 ================
 Darren S Thomas
-06 July, 2020
+13 July, 2020
 
 # read\_data
 
@@ -80,16 +80,64 @@ em <- z %>% pluck("em")
 psm <- z %>% pluck("psm")
 ```
 
-# nc
+# outcome\_distributions
 
 ``` r
-# visualise outcome distirbution
-nc %>% 
-  ggplot(aes(x = va_change, fill = treatment)) +
-    geom_density(alpha = 0.5)
+# combine elements of list as tbl
+z.tbl <- z %>% 
+  bind_rows(.id = "cohort") %>% 
+  mutate(ipw = if_else(
+    cohort %in% c("em", "nc", "psm"),
+    1,
+    ipw
+  ))
 ```
 
-![](1_noninferiority_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+``` r
+# checkout outcome distirbution
+z.tbl %>% 
+  ggplot(aes(x = treatment, y = va_change, weight = ipw, colour = treatment)) +
+  facet_wrap(~ cohort) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) 
+```
+
+![](1_noninferiority_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+``` r
+# moderate negative skew
+```
+
+``` r
+# try out reciprical + constant transformation
+z.tbl %>% 
+  ggplot(aes(x = treatment, y = 1 / (va_change + 100), weight = ipw, colour = treatment)) +
+  facet_wrap(~ cohort) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))
+```
+
+![](1_noninferiority_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
+# summary mean exit va by treatment and cohort (iptw is NOT weighted)
+z.tbl %>% 
+  group_by(cohort, treatment) %>% 
+  summarise(mean_exit_va = round(mean(study_exit_va), 1))
+```
+
+    ## # A tibble: 8 x 3
+    ## # Groups:   cohort [4]
+    ##   cohort treatment mean_exit_va
+    ##   <chr>  <fct>            <dbl>
+    ## 1 em     eylea             50.5
+    ## 2 em     avastin           56.1
+    ## 3 iptw   eylea             55.7
+    ## 4 iptw   avastin           58  
+    ## 5 nc     eylea             55.9
+    ## 6 nc     avastin           58  
+    ## 7 psm    eylea             60.4
+    ## 8 psm    avastin           58
+
+# nc
 
 ``` r
 # mean difference
@@ -116,16 +164,28 @@ lm(
     ## (Intercept)       3.3417776 4.248236
     ## treatmentavastin -0.5063099 6.977835
 
-# iptw
-
 ``` r
-# visualise outcome distirbution
-iptw %>% 
-  ggplot(aes(x = va_change, weight = ipw, fill = treatment)) +
-    geom_density(alpha = 0.5)
+# non-parametric
+wilcox.test(
+  va_change ~ treatment,
+  data = nc,
+  conf.int = TRUE
+)
 ```
 
-![](1_noninferiority_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+    ## 
+    ##  Wilcoxon rank sum test with continuity correction
+    ## 
+    ## data:  va_change by treatment
+    ## W = 119114, p-value = 0.02598
+    ## alternative hypothesis: true location shift is not equal to 0
+    ## 95 percent confidence interval:
+    ##  -7.000052e+00 -1.481671e-05
+    ## sample estimates:
+    ## difference in location 
+    ##              -3.999976
+
+# iptw
 
 ``` r
 # mean difference
@@ -157,15 +217,6 @@ lm(
 # em
 
 ``` r
-# visualise outcome distirbution
-em %>% 
-  ggplot(aes(x = va_change, fill = treatment)) +
-    geom_density(alpha = 0.5)
-```
-
-![](1_noninferiority_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
-
-``` r
 # mean difference
 lm(
   va_change ~ 1 + treatment,
@@ -180,26 +231,38 @@ lm(
 ``` r
 # two-sided confidence intervals
 lm(
-  va_change ~ 1 + treatment,
+  sqrt(va_change) ~ 1 + treatment,
   data = em
 ) %>% 
   confint()
 ```
 
-    ##                      2.5 %    97.5 %
-    ## (Intercept)      -6.543766  4.258052
-    ## treatmentavastin -1.995181 13.280896
+    ##                       2.5 %    97.5 %
+    ## (Intercept)       2.3471573 3.3309656
+    ## treatmentavastin -0.4014669 0.9568479
 
 # psm
 
 ``` r
-# visualise outcome distirbution
-psm %>% 
-  ggplot(aes(x = va_change, fill = treatment)) +
-    geom_density(alpha = 0.5)
+# non-parametric
+wilcox.test(
+  va_change ~ treatment,
+  data = psm,
+  conf.int = TRUE
+)
 ```
 
-![](1_noninferiority_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+    ## 
+    ##  Wilcoxon rank sum test with continuity correction
+    ## 
+    ## data:  va_change by treatment
+    ## W = 2031.5, p-value = 0.7076
+    ## alternative hypothesis: true location shift is not equal to 0
+    ## 95 percent confidence interval:
+    ##  -5.000043  3.000023
+    ## sample estimates:
+    ## difference in location 
+    ##             -0.9999587
 
 ``` r
 # mean difference
@@ -226,6 +289,37 @@ lm(
     ## (Intercept)       3.371573 10.813042
     ## treatmentavastin -5.323452  5.200375
 
+``` r
+t.test(
+  va_change ~ treatment,
+  data = psm
+)
+```
+
+    ## 
+    ##  Welch Two Sample t-test
+    ## 
+    ## data:  va_change by treatment
+    ## t = 0.023141, df = 128, p-value = 0.9816
+    ## alternative hypothesis: true difference in means is not equal to 0
+    ## 95 percent confidence interval:
+    ##  -5.200375  5.323452
+    ## sample estimates:
+    ##   mean in group eylea mean in group avastin 
+    ##              7.092308              7.030769
+
+``` r
+lm(
+  va_change ~ 1 + treatment,
+  data = psm
+) %>% 
+  performance::check_model()
+```
+
+    ## Not enough model terms in the conditional part of the model to check for multicollinearity.
+
+![](1_noninferiority_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
 # forest\_plot
 
 ``` r
@@ -241,7 +335,37 @@ ni <- tribble(
 ```
 
 ``` r
-# set default ggplot theme
+# convert to point estimate and confidence intervals to strings (to keep trailing zeros for plot)
+
+to_string <- function(
+  var,
+  n_digits = 1,
+  n_small = 1){
+    
+  as.character(format(round(var, digits = n_digits), nsmall = n_small))
+  
+  }
+```
+
+``` r
+ni <- ni %>% 
+  mutate(
+    mean_difference_lab = to_string(mean_difference),
+    lo95_lab = to_string(lo95),
+    hi95_lab = to_string(hi95),
+    lab = str_c(
+      str_trim(mean_difference_lab), 
+      "(", 
+      str_trim(lo95_lab), 
+      "-", 
+      str_trim(hi95_lab), 
+      ")")
+  )
+```
+
+``` r
+# forest plot
+# set new default ggplot theme
 courier_bw <- theme_classic() +
   theme(text = element_text(family = "Courier"),
         legend.position = "bottom",
@@ -275,14 +399,13 @@ ni %>%
   )) +
   geom_text(aes(
     family = 'Courier',
-    label = paste(round(mean_difference, 1), " (", round(lo95, 1), "-", round(hi95, 1), ")",
-                  sep = "")),
-    parse = TRUE,
+    label = lab),
+    parse = FALSE,
     nudge_y = -0.2) +
   scale_x_continuous(breaks = seq(- 6, 14, 2))
 ```
 
-![](1_noninferiority_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](1_noninferiority_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 ``` r
 # export as .tiff (half-page fig)
@@ -314,21 +437,24 @@ ggsave(
     ## 
     ## other attached packages:
     ##  [1] forcats_0.5.0   stringr_1.4.0   dplyr_1.0.0     purrr_0.3.4    
-    ##  [5] readr_1.3.1     tidyr_1.1.0     tibble_3.0.1    ggplot2_3.3.1  
+    ##  [5] readr_1.3.1     tidyr_1.1.0     tibble_3.0.2    ggplot2_3.3.2  
     ##  [9] tidyverse_1.3.0 broom_0.5.6    
     ## 
     ## loaded via a namespace (and not attached):
-    ##  [1] tidyselect_1.1.0 xfun_0.14        haven_2.3.1      lattice_0.20-41 
-    ##  [5] colorspace_1.4-1 vctrs_0.3.1      generics_0.0.2   htmltools_0.4.0 
-    ##  [9] yaml_2.2.1       blob_1.2.1       rlang_0.4.6      pillar_1.4.4    
-    ## [13] glue_1.4.1       withr_2.2.0      DBI_1.1.0        dbplyr_1.4.4    
-    ## [17] modelr_0.1.8     readxl_1.3.1     lifecycle_0.2.0  munsell_0.5.0   
-    ## [21] gtable_0.3.0     cellranger_1.1.0 rvest_0.3.5      evaluate_0.14   
-    ## [25] labeling_0.3     knitr_1.28       fansi_0.4.1      Rcpp_1.0.4.6    
-    ## [29] scales_1.1.1     backports_1.1.7  jsonlite_1.7.0   farver_2.0.3    
-    ## [33] fs_1.4.1         hms_0.5.3        digest_0.6.25    stringi_1.4.6   
-    ## [37] grid_3.6.0       cli_2.0.2        tools_3.6.0      magrittr_1.5    
-    ## [41] crayon_1.3.4     pkgconfig_2.0.3  ellipsis_0.3.1   xml2_1.3.2      
-    ## [45] reprex_0.3.0     lubridate_1.7.9  assertthat_0.2.1 rmarkdown_2.2   
-    ## [49] httr_1.4.1       rstudioapi_0.11  R6_2.4.1         nlme_3.1-148    
-    ## [53] compiler_3.6.0
+    ##  [1] Rcpp_1.0.4.6      lubridate_1.7.9   lattice_0.20-41   assertthat_0.2.1 
+    ##  [5] digest_0.6.25     utf8_1.1.4        R6_2.4.1          cellranger_1.1.0 
+    ##  [9] plyr_1.8.6        ggridges_0.5.2    backports_1.1.8   reprex_0.3.0     
+    ## [13] evaluate_0.14     httr_1.4.1        pillar_1.4.4      rlang_0.4.6      
+    ## [17] readxl_1.3.1      rstudioapi_0.11   see_0.5.0         performance_0.4.6
+    ## [21] blob_1.2.1        Matrix_1.2-18     effectsize_0.3.1  rmarkdown_2.2    
+    ## [25] splines_3.6.0     labeling_0.3      munsell_0.5.0     compiler_3.6.0   
+    ## [29] modelr_0.1.8      xfun_0.14         pkgconfig_2.0.3   parameters_0.7.0 
+    ## [33] mgcv_1.8-31       htmltools_0.4.0   insight_0.8.4     tidyselect_1.1.0 
+    ## [37] gridExtra_2.3     fansi_0.4.1       crayon_1.3.4      dbplyr_1.4.4     
+    ## [41] withr_2.2.0       grid_3.6.0        nlme_3.1-148      jsonlite_1.7.0   
+    ## [45] gtable_0.3.0      lifecycle_0.2.0   DBI_1.1.0         magrittr_1.5     
+    ## [49] bayestestR_0.6.0  scales_1.1.1      cli_2.0.2         stringi_1.4.6    
+    ## [53] farver_2.0.3      fs_1.4.1          xml2_1.3.2        ellipsis_0.3.1   
+    ## [57] generics_0.0.2    vctrs_0.3.1       tools_3.6.0       glue_1.4.1       
+    ## [61] hms_0.5.3         yaml_2.2.1        colorspace_1.4-1  rvest_0.3.5      
+    ## [65] knitr_1.28        haven_2.3.1
