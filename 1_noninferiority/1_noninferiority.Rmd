@@ -144,128 +144,74 @@ z.tbl %>%
 # nc
 
 ```{r}
-# mean difference
-lm(
+# fit lm
+nc.lm <- lm(
   va_change ~ 1 + treatment,
   data = nc
 ) %>% 
-  coef()
-```
+  broom::tidy(conf.int = TRUE) %>% 
+  mutate(method = "NC")
 
-```{r}
-# two-sided confidence intervals
-lm(
-  va_change ~ 1 + treatment,
-  data = nc
-) %>% 
-  confint()
-```
-
-```{r}
-# non-parametric
-wilcox.test(
-  va_change ~ treatment,
-  data = nc,
-  conf.int = TRUE
-)
+nc.lm
 ```
 # iptw
 
 ```{r}
-# mean difference
-lm(
+# fit lm
+iptw.lm <- lm(
   va_change ~ 1 + treatment,
   data = iptw,
   weights = ipw
 ) %>% 
-  coef()
-```
+  broom::tidy(conf.int = TRUE) %>% 
+  mutate(method = "IPTW")
 
-```{r}
-# two-sided confidence intervals
-lm(
-  va_change ~ 1 + treatment,
-  data = iptw,
-  weights = ipw
-) %>% 
-  confint()
+iptw.lm
 ```
 
 # em
 
 ```{r}
-# mean difference
-lm(
+# fit lm
+em.lm <- lm(
   va_change ~ 1 + treatment,
   data = em
 ) %>% 
-  coef()
+  broom::tidy(conf.int = TRUE) %>% 
+    mutate(method = "EM")
+
+em.lm
 ```
 
-```{r}
-# two-sided confidence intervals
-lm(
-  sqrt(va_change) ~ 1 + treatment,
-  data = em
-) %>% 
-  confint()
-```
 # psm
 
 ```{r}
-# non-parametric
-wilcox.test(
-  va_change ~ treatment,
-  data = psm,
-  conf.int = TRUE
-)
-```
-
-```{r}
-# mean difference
-lm(
+# fit lm
+psm.lm <- lm(
   va_change ~ 1 + treatment,
   data = psm
 ) %>% 
-  coef()
-```
+  broom::tidy(conf.int = TRUE) %>% 
+  mutate(method = "PSM")
 
-```{r}
-# two-sided confidence intervals
-lm(
-  va_change ~ 1 + treatment,
-  data = psm
-) %>% 
-  confint()
-```
-
-```{r}
-t.test(
-  va_change ~ treatment,
-  data = psm
-)
-```
-
-```{r}
-lm(
-  va_change ~ 1 + treatment,
-  data = psm
-) %>% 
-  performance::check_model()
+psm.lm
 ```
 
 # forest_plot
 
 ```{r}
-# values pulled from linear models
-ni <- tribble(
-  ~ method, ~ mean_difference, ~ lo95, ~ hi95,
-  "NC", 3.235762, -0.5063099, 6.977835,
-  "IPTW", 3.256231, -0.5063099, 6.977835,
-  "EM", 5.642857, -1.995181, 13.280896,
-  "PSM", -0.06153846, -5.323452, 5.200375
+# extract estimates from .lm onjects
+ni.lm <- bind_rows(
+  nc.lm,
+  iptw.lm,
+  em.lm,
+  psm.lm
 ) %>% 
-  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")))
+  rename(
+    mean_difference = estimate,
+    lo95 = conf.low,
+    hi95 = conf.high
+  )
 ```
 
 ```{r}
@@ -283,7 +229,8 @@ to_string <- function(
 ```
 
 ```{r}
-ni <- ni %>% 
+ni.lm <- ni.lm %>% 
+  filter(term != "(Intercept)") %>% 
   mutate(
     mean_difference_lab = to_string(mean_difference),
     lo95_lab = to_string(lo95),
@@ -295,7 +242,8 @@ ni <- ni %>%
       "-", 
       str_trim(hi95_lab), 
       ")")
-  )
+  ) %>% 
+  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")))
 ```
 
 
@@ -314,7 +262,7 @@ courier_bw <- theme_classic() +
 
 theme_set(courier_bw)
 
-ni %>% 
+ni.lm %>% 
   ggplot(aes(x = mean_difference, y = method)) +
   geom_point(
     size = 6,

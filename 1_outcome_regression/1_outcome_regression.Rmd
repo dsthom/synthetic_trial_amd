@@ -18,9 +18,15 @@ library(broom)
 library(tidyverse)
 
 # set default ggplot theme
-courier_bw <- theme_bw() +
+courier_bw <- theme_classic() +
   theme(text = element_text(family = "Courier"),
-        legend.position = "bottom")
+        legend.position = "bottom",
+        axis.text.y = element_text(
+          face = "bold", 
+          size = 14,
+          hjust = 0.5),
+        axis.ticks = element_blank(),
+        axis.line.y = element_blank())
 
 theme_set(courier_bw)
 ```
@@ -90,6 +96,19 @@ nc[[6]][[2]]
 nc[[6]][[3]]
 ```
 
+```{r}
+# extract .glm output
+nc.glm <- nc %>% 
+  select(
+    outcome,
+    tidy_output
+  ) %>% 
+  unnest(cols = tidy_output) %>% 
+  mutate(method = "NC")
+
+nc.glm
+```
+
 # iptw
 
 ```{r}
@@ -110,6 +129,19 @@ iptw[[6]][[2]]
 ```{r}
 # > -15 letters
 iptw[[6]][[3]]
+```
+
+```{r}
+# extract .glm output
+iptw.glm <- iptw %>% 
+  select(
+    outcome,
+    tidy_output
+  ) %>% 
+  unnest(cols = tidy_output) %>% 
+  mutate(method = "IPTW")
+
+iptw.glm
 ```
 
 # em
@@ -136,6 +168,19 @@ em[[6]][[2]]
 em[[6]][[3]]
 ```
 
+```{r}
+# extract .glm output
+em.glm <- em %>% 
+  select(
+    outcome,
+    tidy_output
+  ) %>% 
+  unnest(cols = tidy_output) %>% 
+  mutate(method = "EM")
+
+em.glm
+```
+
 # psm
 
 ```{r}
@@ -160,41 +205,43 @@ psm[[6]][[2]]
 psm[[6]][[3]]
 ```
 
+```{r}
+# extract .glm output
+psm.glm <- psm %>% 
+  select(
+    outcome,
+    tidy_output
+  ) %>% 
+  unnest(cols = tidy_output)%>% 
+  mutate(method = "PSM")
+
+psm.glm
+```
+
 # forest_plot
 
 ```{r}
-# set default ggplot theme
-courier_bw <- theme_classic() +
-  theme(text = element_text(family = "Courier"),
-        legend.position = "bottom",
-        axis.text.y = element_text(
-          face = "bold", 
-          size = 14,
-          hjust = 0.5),
-        axis.ticks = element_blank(),
-        axis.line.y = element_blank())
-
-theme_set(courier_bw)
+# bind .glm outputs
+sup <- bind_rows(
+  nc.glm,
+  iptw.glm,
+  em.glm,
+  psm.glm
+) %>% 
+  # rename broom::tidy() outputs
+  rename(
+    or = estimate,
+    lo95 = conf.low,
+    hi95 = conf.high
+  ) %>% 
+  # 
+  mutate(outcome = case_when(
+    outcome == "fifteen_gain" ~ "≥ 15 letters",
+    outcome == "ten_gain" ~ "≥ 10 letters",
+    outcome == "fifteen_loss" ~ "> -15 letters"
+  ))
 ```
 
-```{r}
-#  read data
-sup <- tribble(
-  ~method, ~outcome,        ~or,  ~lo95, ~hi95, ~p_value,
-  'NC',    '≥ 15 letters',  1.50, 0.87,  2.50,  0.130,
-  'IPTW',  '≥ 15 letters',  1.41, 0.96,  2.03,  0.076,
-  'EM',    '≥ 15 letters',  2.24, 0.81,  6.66,  0.129,
-  'PSM',   '≥ 15 letters',  0.98, 0.47,  2.05,  0.951,
-  'NC',    '≥ 10 letters',  1.47, 0.89,  2.39,  0.127,
-  'IPTW',  '≥ 10 letters',  1.45, 1.02,  2.05,  0.035,
-  'EM',    '≥ 10 letters',  1.36, 0.56,  3.35,  0.498,
-  'PSM',   '≥ 10 letters',  1.17, 0.59,  2.36,  0.650,
-  'NC',    '> -15 letters', 1.20, 0.56,  3.12,  0.676,
-  'IPTW',  '> -15 letters', 1.21, 0.70,  2.29,  0.528,
-  'EM',    '> -15 letters', 1.64, 0.53,  5.35,  0.395,
-  'PSM',   '> -15 letters', 0.66, 0.16,  2.41,  0.529
-)
-```
 
 ```{r}
 # convert to point estimate and confidence intervals to strings (to keep trailing zeros for plot)
@@ -232,6 +279,7 @@ sup <- sup %>%
 ```{r}
 # plot, faceted by adjustment
 sup %>% 
+  filter(term != "(Intercept)") %>% 
   mutate(
     method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")),
     outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '> -15 letters'))) %>% 

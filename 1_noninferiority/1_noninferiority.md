@@ -140,198 +140,99 @@ z.tbl %>%
 # nc
 
 ``` r
-# mean difference
-lm(
+# fit lm
+nc.lm <- lm(
   va_change ~ 1 + treatment,
   data = nc
 ) %>% 
-  coef()
+  broom::tidy(conf.int = TRUE) %>% 
+  mutate(method = "NC")
+
+nc.lm
 ```
 
-    ##      (Intercept) treatmentavastin 
-    ##         3.795007         3.235762
-
-``` r
-# two-sided confidence intervals
-lm(
-  va_change ~ 1 + treatment,
-  data = nc
-) %>% 
-  confint()
-```
-
-    ##                       2.5 %   97.5 %
-    ## (Intercept)       3.3417776 4.248236
-    ## treatmentavastin -0.5063099 6.977835
-
-``` r
-# non-parametric
-wilcox.test(
-  va_change ~ treatment,
-  data = nc,
-  conf.int = TRUE
-)
-```
-
-    ## 
-    ##  Wilcoxon rank sum test with continuity correction
-    ## 
-    ## data:  va_change by treatment
-    ## W = 119114, p-value = 0.02598
-    ## alternative hypothesis: true location shift is not equal to 0
-    ## 95 percent confidence interval:
-    ##  -7.000052e+00 -1.481671e-05
-    ## sample estimates:
-    ## difference in location 
-    ##              -3.999976
+    ## # A tibble: 2 x 8
+    ##   term           estimate std.error statistic  p.value conf.low conf.high method
+    ##   <chr>             <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl> <chr> 
+    ## 1 (Intercept)        3.80     0.231     16.4  7.81e-59    3.34       4.25 NC    
+    ## 2 treatmentavas…     3.24     1.91       1.70 9.01e- 2   -0.506      6.98 NC
 
 # iptw
 
 ``` r
-# mean difference
-lm(
+# fit lm
+iptw.lm <- lm(
   va_change ~ 1 + treatment,
   data = iptw,
   weights = ipw
 ) %>% 
-  coef()
+  broom::tidy(conf.int = TRUE) %>% 
+  mutate(method = "IPTW")
+
+iptw.lm
 ```
 
-    ##      (Intercept) treatmentavastin 
-    ##         3.388457         3.256231
-
-``` r
-# two-sided confidence intervals
-lm(
-  va_change ~ 1 + treatment,
-  data = iptw,
-  weights = ipw
-) %>% 
-  confint()
-```
-
-    ##                      2.5 %   97.5 %
-    ## (Intercept)       2.923917 3.852997
-    ## treatmentavastin -0.534026 7.046488
+    ## # A tibble: 2 x 8
+    ##   term           estimate std.error statistic  p.value conf.low conf.high method
+    ##   <chr>             <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl> <chr> 
+    ## 1 (Intercept)        3.39     0.237     14.3  2.47e-45    2.92       3.85 IPTW  
+    ## 2 treatmentavas…     3.26     1.93       1.68 9.22e- 2   -0.534      7.05 IPTW
 
 # em
 
 ``` r
-# mean difference
-lm(
+# fit lm
+em.lm <- lm(
   va_change ~ 1 + treatment,
   data = em
 ) %>% 
-  coef()
+  broom::tidy(conf.int = TRUE) %>% 
+    mutate(method = "EM")
+
+em.lm
 ```
 
-    ##      (Intercept) treatmentavastin 
-    ##        -1.142857         5.642857
-
-``` r
-# two-sided confidence intervals
-lm(
-  sqrt(va_change) ~ 1 + treatment,
-  data = em
-) %>% 
-  confint()
-```
-
-    ##                       2.5 %    97.5 %
-    ## (Intercept)       2.3471573 3.3309656
-    ## treatmentavastin -0.4014669 0.9568479
+    ## # A tibble: 2 x 8
+    ##   term            estimate std.error statistic p.value conf.low conf.high method
+    ##   <chr>              <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl> <chr> 
+    ## 1 (Intercept)        -1.14      2.71    -0.421   0.675    -6.54      4.26 EM    
+    ## 2 treatmentavast…     5.64      3.84     1.47    0.145    -2.00     13.3  EM
 
 # psm
 
 ``` r
-# non-parametric
-wilcox.test(
-  va_change ~ treatment,
-  data = psm,
-  conf.int = TRUE
-)
-```
-
-    ## 
-    ##  Wilcoxon rank sum test with continuity correction
-    ## 
-    ## data:  va_change by treatment
-    ## W = 2031.5, p-value = 0.7076
-    ## alternative hypothesis: true location shift is not equal to 0
-    ## 95 percent confidence interval:
-    ##  -5.000043  3.000023
-    ## sample estimates:
-    ## difference in location 
-    ##             -0.9999587
-
-``` r
-# mean difference
-lm(
+# fit lm
+psm.lm <- lm(
   va_change ~ 1 + treatment,
   data = psm
 ) %>% 
-  coef()
+  broom::tidy(conf.int = TRUE) %>% 
+  mutate(method = "PSM")
+
+psm.lm
 ```
 
-    ##      (Intercept) treatmentavastin 
-    ##       7.09230769      -0.06153846
-
-``` r
-# two-sided confidence intervals
-lm(
-  va_change ~ 1 + treatment,
-  data = psm
-) %>% 
-  confint()
-```
-
-    ##                      2.5 %    97.5 %
-    ## (Intercept)       3.371573 10.813042
-    ## treatmentavastin -5.323452  5.200375
-
-``` r
-t.test(
-  va_change ~ treatment,
-  data = psm
-)
-```
-
-    ## 
-    ##  Welch Two Sample t-test
-    ## 
-    ## data:  va_change by treatment
-    ## t = 0.023141, df = 128, p-value = 0.9816
-    ## alternative hypothesis: true difference in means is not equal to 0
-    ## 95 percent confidence interval:
-    ##  -5.200375  5.323452
-    ## sample estimates:
-    ##   mean in group eylea mean in group avastin 
-    ##              7.092308              7.030769
-
-``` r
-lm(
-  va_change ~ 1 + treatment,
-  data = psm
-) %>% 
-  performance::check_model()
-```
-
-    ## Not enough model terms in the conditional part of the model to check for multicollinearity.
-
-![](1_noninferiority_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+    ## # A tibble: 2 x 8
+    ##   term            estimate std.error statistic p.value conf.low conf.high method
+    ##   <chr>              <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl> <chr> 
+    ## 1 (Intercept)       7.09        1.88    3.77   2.47e-4     3.37     10.8  PSM   
+    ## 2 treatmentavast…  -0.0615      2.66   -0.0231 9.82e-1    -5.32      5.20 PSM
 
 # forest\_plot
 
 ``` r
-# values pulled from linear models
-ni <- tribble(
-  ~ method, ~ mean_difference, ~ lo95, ~ hi95,
-  "NC", 3.235762, -0.5063099, 6.977835,
-  "IPTW", 3.256231, -0.5063099, 6.977835,
-  "EM", 5.642857, -1.995181, 13.280896,
-  "PSM", -0.06153846, -5.323452, 5.200375
+# extract estimates from .lm onjects
+ni.lm <- bind_rows(
+  nc.lm,
+  iptw.lm,
+  em.lm,
+  psm.lm
 ) %>% 
-  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")))
+  rename(
+    mean_difference = estimate,
+    lo95 = conf.low,
+    hi95 = conf.high
+  )
 ```
 
 ``` r
@@ -348,7 +249,8 @@ to_string <- function(
 ```
 
 ``` r
-ni <- ni %>% 
+ni.lm <- ni.lm %>% 
+  filter(term != "(Intercept)") %>% 
   mutate(
     mean_difference_lab = to_string(mean_difference),
     lo95_lab = to_string(lo95),
@@ -360,7 +262,8 @@ ni <- ni %>%
       "-", 
       str_trim(hi95_lab), 
       ")")
-  )
+  ) %>% 
+  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")))
 ```
 
 ``` r
@@ -378,7 +281,7 @@ courier_bw <- theme_classic() +
 
 theme_set(courier_bw)
 
-ni %>% 
+ni.lm %>% 
   ggplot(aes(x = mean_difference, y = method)) +
   geom_point(
     size = 6,
@@ -405,7 +308,7 @@ ni %>%
   scale_x_continuous(breaks = seq(- 6, 14, 2))
 ```
 
-![](1_noninferiority_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](1_noninferiority_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
 # export as .tiff (half-page fig)
@@ -441,20 +344,17 @@ ggsave(
     ##  [9] tidyverse_1.3.0 broom_0.5.6    
     ## 
     ## loaded via a namespace (and not attached):
-    ##  [1] Rcpp_1.0.4.6      lubridate_1.7.9   lattice_0.20-41   assertthat_0.2.1 
-    ##  [5] digest_0.6.25     utf8_1.1.4        R6_2.4.1          cellranger_1.1.0 
-    ##  [9] plyr_1.8.6        ggridges_0.5.2    backports_1.1.8   reprex_0.3.0     
-    ## [13] evaluate_0.14     httr_1.4.1        pillar_1.4.4      rlang_0.4.6      
-    ## [17] readxl_1.3.1      rstudioapi_0.11   see_0.5.0         performance_0.4.6
-    ## [21] blob_1.2.1        Matrix_1.2-18     effectsize_0.3.1  rmarkdown_2.2    
-    ## [25] splines_3.6.0     labeling_0.3      munsell_0.5.0     compiler_3.6.0   
-    ## [29] modelr_0.1.8      xfun_0.14         pkgconfig_2.0.3   parameters_0.7.0 
-    ## [33] mgcv_1.8-31       htmltools_0.4.0   insight_0.8.4     tidyselect_1.1.0 
-    ## [37] gridExtra_2.3     fansi_0.4.1       crayon_1.3.4      dbplyr_1.4.4     
-    ## [41] withr_2.2.0       grid_3.6.0        nlme_3.1-148      jsonlite_1.7.0   
-    ## [45] gtable_0.3.0      lifecycle_0.2.0   DBI_1.1.0         magrittr_1.5     
-    ## [49] bayestestR_0.6.0  scales_1.1.1      cli_2.0.2         stringi_1.4.6    
-    ## [53] farver_2.0.3      fs_1.4.1          xml2_1.3.2        ellipsis_0.3.1   
-    ## [57] generics_0.0.2    vctrs_0.3.1       tools_3.6.0       glue_1.4.1       
-    ## [61] hms_0.5.3         yaml_2.2.1        colorspace_1.4-1  rvest_0.3.5      
-    ## [65] knitr_1.28        haven_2.3.1
+    ##  [1] tidyselect_1.1.0 xfun_0.14        haven_2.3.1      lattice_0.20-41 
+    ##  [5] colorspace_1.4-1 vctrs_0.3.1      generics_0.0.2   htmltools_0.4.0 
+    ##  [9] yaml_2.2.1       utf8_1.1.4       blob_1.2.1       rlang_0.4.6     
+    ## [13] pillar_1.4.4     glue_1.4.1       withr_2.2.0      DBI_1.1.0       
+    ## [17] dbplyr_1.4.4     modelr_0.1.8     readxl_1.3.1     lifecycle_0.2.0 
+    ## [21] munsell_0.5.0    gtable_0.3.0     cellranger_1.1.0 rvest_0.3.5     
+    ## [25] evaluate_0.14    labeling_0.3     knitr_1.28       fansi_0.4.1     
+    ## [29] Rcpp_1.0.4.6     scales_1.1.1     backports_1.1.8  jsonlite_1.7.0  
+    ## [33] farver_2.0.3     fs_1.4.1         hms_0.5.3        digest_0.6.25   
+    ## [37] stringi_1.4.6    grid_3.6.0       cli_2.0.2        tools_3.6.0     
+    ## [41] magrittr_1.5     crayon_1.3.4     pkgconfig_2.0.3  ellipsis_0.3.1  
+    ## [45] xml2_1.3.2       reprex_0.3.0     lubridate_1.7.9  assertthat_0.2.1
+    ## [49] rmarkdown_2.2    httr_1.4.1       rstudioapi_0.11  R6_2.4.1        
+    ## [53] nlme_3.1-148     compiler_3.6.0
