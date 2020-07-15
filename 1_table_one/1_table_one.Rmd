@@ -47,42 +47,75 @@ z <- map(
 
 # name each element of list
 names(z) <- c('nc', 'iptw', 'em', 'psm')
-
-# extract each elelment of list as tbl
-nc <- z %>% pluck("nc")
-
-iptw <- z %>% pluck("iptw")
-  
-em <- z %>% pluck("em")
-
-psm <- z %>% pluck("psm")
 ```
   
 ```{r}
-# source fnc
-source("../fnc/table_one.R")
+# merge to a single tbl
+zz <- bind_rows(z, .id = "cohort") %>% 
+  # 
+  select(cohort:baseline_etdrs)
+```
+
+```{r}
+# create assign_ps fnc
+assign_ps <- function(
+  tbl
+){
+
+  # source propensity model
+  source("../src/propensity_model.R")
+
+  # predict Pr of treatment(Avastin == 1)
+  output <- augment(
+   x = propensity_model,
+   newdata = tbl,
+   type.predict = "response") %>% 
+    rename(
+      ps = .fitted,
+      ps_se = .se.fit
+    )
+  
+  # calculate ipw for iptw cohhort, else weight = 1
+  output <- output %>% 
+    mutate(weight = if_else(cohort == "iptw", 1 / ps, 1))
+  
+  output
+  }
+  
+```
+
+```{r}
+# score Pr
+exc <- assign_ps(tbl = zz) %>% 
+  # refactor sex
+  mutate(gender = factor(gender, levels = c('M', 'F')))
 ```
 
 # nc
 
 ```{r}
-table_one(nc) %>% 
-  knitr::kable()
+tableone::CreateTableOne(
+  vars = c("gender", "age", "baseline_etdrs", "ps"),
+  strata = "treatment",
+  data = filter(exc, cohort == "nc"),
+  test = FALSE
+) %>% 
+print(smd = TRUE)
 ```
 
 # iptw
 
-Calculating the weighted baseline characteristics for iptw cohort is not straightforward and therefore we will rely on available solutions.
+Calculating the weighted baseline characteristics requires an addition step using the `survey` package.
 
 ```{r}
-iptw <- iptw %>%
-  # categorical vars must be as factors
-  mutate(gender = factor(gender, levels = c('M', 'F')))
+# subset ipw so we are sure weights align with rows
+iptw <- filter(exc, cohort == "iptw")
+```
 
+```{r}
 iptw.svy <- survey::svydesign(
-  ids = ~0, # no hierachy
-  strata = NULL,
-  weights = iptw$ipw,
+  ids = ~ 0, # no hierarchy
+  weights = ~ weight,
   nest = FALSE,
   data = iptw
 )
@@ -90,45 +123,49 @@ iptw.svy <- survey::svydesign(
 
 ```{r}
 tableone::svyCreateTableOne(
-  vars = c('gender', 'age', 'baseline_etdrs'),
-  strata = 'treatment',
-  data = iptw.svy
+  vars = c("gender", "age", "baseline_etdrs", "ps"),
+  strata = "treatment",
+  data = iptw.svy,
+  test = FALSE
 ) %>% 
-  print(
-    nonnormal = c('age', 'baseline_etdrs'),
-    contDigits = 0)
-```
-
-```{r}
-# ranges are unaffected
-table_one(iptw) %>% 
-    knitr::kable()
+  print(smd = TRUE)
 ```
 
 # em
 
 ```{r}
-table_one(em) %>% 
-    knitr::kable()
+tableone::CreateTableOne(
+  vars = c("gender", "age", "baseline_etdrs", "ps"),
+  strata = "treatment",
+  data = filter(exc, cohort == "em"),
+  test = FALSE
+) %>% 
+print(smd = TRUE)
 ```
-
 
 # psm
 
 ```{r}
-table_one(psm) %>% 
-    knitr::kable()
+tableone::CreateTableOne(
+  vars = c("gender", "age", "baseline_etdrs", "ps"),
+  strata = "treatment",
+  data = filter(exc, cohort == "psm"),
+  test = FALSE
+) %>% 
+print(smd = TRUE)
 ```
 
-# aflibercept (before aligning protocols)
+# pre-alignment
+
+To what extend did exchangeability hold pre-alignment?
 
 ```{r}
 # configure connection to mysql
 source("../src/kale_mysql.R")
 ```
 
-```{sql connection = kale, output.var = 'all.eylea'}
--- output.var = 'all.eylea'
+```{sql connection = kale, output.var = 'pre'}
+-- output.var = 'pre'
 SELECT patient_eye AS id,
 treatment,
 age_at_baseline AS age,
@@ -138,23 +175,38 @@ FROM amd_synthetic_eylea_arm_study_table;
 ```
 
 ```{r}
-# correct for if 1/60 snellen meters
-all.eylea$baseline_etdrs[all.eylea$baseline_etdrs == -4] <- 4
-
-# correct for it cf
-all.eylea$baseline_etdrs[all.eylea$baseline_etdrs == -15] <- 2
-
-# correct for if gm, lp, or nlp
-all.eylea$baseline_etdrs[all.eylea$baseline_etdrs <= -30] <- 0
-
-all.eylea %>% 
+pre <- pre %>% 
+  # convert to tbl
   as_tibble() %>% 
-  na.omit() %>% 
-  table_one() %>% 
-  knitr::kable()
+  # exclude those with missing data
+  drop_na(gender, age, baseline_etdrs) %>% 
+  # add cohort
+  mutate(cohort = "prealignment")
 ```
+
+```{r}
+# assign ps 
+pre.ps <- assign_ps(tbl = pre) %>% 
+  # add avastin trial arm
+  bind_rows(filter(exc, cohort == "nc" & treatment == "avastin")) %>% 
+  # refactor treatment and sex
+  mutate(
+    treatment = factor(treatment, levels = c('eylea', 'avastin')),
+    gender = factor(gender, levels = c('M', 'F'))
+  )
+```
+
+```{r}
+tableone::CreateTableOne(
+  vars = c("gender", "age", "baseline_etdrs", "ps"),
+  strata = "treatment",
+  data = pre.ps,
+  test = FALSE
+) %>% 
+print(smd = TRUE)
+```
+
 
 ```{r info, echo = FALSE}
 print(sessionInfo())
 ```
-
