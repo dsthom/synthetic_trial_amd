@@ -53,10 +53,10 @@ z <- map(
 )
 
 # name each element of list
-names(z) <- c('nc', 'iptw', 'em', 'psm')
+names(z) <- c('uc', 'iptw', 'em', 'psm')
 
 # extract each elelment of list as tbl
-nc <- z %>% pluck("nc")
+uc <- z %>% pluck("uc")
 
 iptw <- z %>% pluck("iptw")
   
@@ -72,10 +72,10 @@ psm <- z %>% pluck("psm")
 source("../fnc/va_glm.R")
 ```
 
-# nc
+# uc
 
 ```{r}
-nc <- nc %>% 
+uc <- uc %>% 
   # add null weights
   mutate(weights = 1) %>% 
   va_glm()
@@ -83,30 +83,30 @@ nc <- nc %>%
 
 ```{r}
 # ≥ 15 letters
-nc[[6]][[1]]
+uc[[6]][[1]]
 ```
 
 ```{r}
 # ≥ 10 letetrs 
-nc[[6]][[2]]
+uc[[6]][[2]]
 ```
 
 ```{r}
 # > -15 letters
-nc[[6]][[3]]
+uc[[6]][[3]]
 ```
 
 ```{r}
 # extract .glm output
-nc.glm <- nc %>% 
+uc.glm <- uc %>% 
   select(
     outcome,
     tidy_output
   ) %>% 
   unnest(cols = tidy_output) %>% 
-  mutate(method = "NC")
+  mutate(method = "UC")
 
-nc.glm
+uc.glm
 ```
 
 # iptw
@@ -223,7 +223,7 @@ psm.glm
 ```{r}
 # bind .glm outputs
 sup <- bind_rows(
-  nc.glm,
+  uc.glm,
   iptw.glm,
   em.glm,
   psm.glm
@@ -281,7 +281,7 @@ sup <- sup %>%
 sup %>% 
   filter(term != "(Intercept)") %>% 
   mutate(
-    method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")),
+    method = factor(method, levels = c("PSM", "EM", "IPTW", "UC")),
     outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '> -15 letters'))) %>% 
 ggplot(aes(x = or, y = method)) +
   facet_grid(.~outcome) +

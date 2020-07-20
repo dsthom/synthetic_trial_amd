@@ -1,7 +1,7 @@
 noninferiority
 ================
 Darren S Thomas
-13 July, 2020
+20 July, 2020
 
 # read\_data
 
@@ -25,7 +25,7 @@ z <- map(
 )
 
 # name each element of list
-names(z) <- c('nc', 'iptw', 'em', 'psm')
+names(z) <- c('uc', 'iptw', 'em', 'psm')
 ```
 
 ``` r
@@ -71,7 +71,7 @@ z <- map(
 
 ``` r
 # extract each elelment of list as tbl
-nc <- z %>% pluck("nc")
+uc <- z %>% pluck("uc")
 
 iptw <- z %>% pluck("iptw")
   
@@ -87,7 +87,7 @@ psm <- z %>% pluck("psm")
 z.tbl <- z %>% 
   bind_rows(.id = "cohort") %>% 
   mutate(ipw = if_else(
-    cohort %in% c("em", "nc", "psm"),
+    cohort %in% c("em", "uc", "psm"),
     1,
     ipw
   ))
@@ -132,30 +132,30 @@ z.tbl %>%
     ## 2 em     avastin           56.1
     ## 3 iptw   eylea             55.7
     ## 4 iptw   avastin           58  
-    ## 5 nc     eylea             55.9
-    ## 6 nc     avastin           58  
-    ## 7 psm    eylea             60.4
-    ## 8 psm    avastin           58
+    ## 5 psm    eylea             60.4
+    ## 6 psm    avastin           58  
+    ## 7 uc     eylea             55.9
+    ## 8 uc     avastin           58
 
-# nc
+# uc
 
 ``` r
 # fit lm
-nc.lm <- lm(
+uc.lm <- lm(
   va_change ~ 1 + treatment,
-  data = nc
+  data = uc
 ) %>% 
   broom::tidy(conf.int = TRUE) %>% 
-  mutate(method = "NC")
+  mutate(method = "UC")
 
-nc.lm
+uc.lm
 ```
 
     ## # A tibble: 2 x 8
     ##   term           estimate std.error statistic  p.value conf.low conf.high method
     ##   <chr>             <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl> <chr> 
-    ## 1 (Intercept)        3.80     0.231     16.4  7.81e-59    3.34       4.25 NC    
-    ## 2 treatmentavas…     3.24     1.91       1.70 9.01e- 2   -0.506      6.98 NC
+    ## 1 (Intercept)        3.80     0.231     16.4  7.81e-59    3.34       4.25 UC    
+    ## 2 treatmentavas…     3.24     1.91       1.70 9.01e- 2   -0.506      6.98 UC
 
 # iptw
 
@@ -223,7 +223,7 @@ psm.lm
 ``` r
 # extract estimates from .lm onjects
 ni.lm <- bind_rows(
-  nc.lm,
+  uc.lm,
   iptw.lm,
   em.lm,
   psm.lm
@@ -263,7 +263,7 @@ ni.lm <- ni.lm %>%
       str_trim(hi95_lab), 
       ")")
   ) %>% 
-  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")))
+  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "UC")))
 ```
 
 ``` r
@@ -324,13 +324,13 @@ ggsave(
 )
 ```
 
-    ## R version 3.6.0 (2019-04-26)
-    ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
+    ## R version 4.0.2 (2020-06-22)
+    ## Platform: x86_64-apple-darwin17.0 (64-bit)
     ## Running under: macOS Mojave 10.14.6
     ## 
     ## Matrix products: default
-    ## BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
-    ## LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+    ## BLAS:   /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRblas.dylib
+    ## LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
     ## 
     ## locale:
     ## [1] en_GB.UTF-8/en_GB.UTF-8/en_GB.UTF-8/C/en_GB.UTF-8/en_GB.UTF-8
@@ -340,21 +340,20 @@ ggsave(
     ## 
     ## other attached packages:
     ##  [1] forcats_0.5.0   stringr_1.4.0   dplyr_1.0.0     purrr_0.3.4    
-    ##  [5] readr_1.3.1     tidyr_1.1.0     tibble_3.0.2    ggplot2_3.3.2  
-    ##  [9] tidyverse_1.3.0 broom_0.5.6    
+    ##  [5] readr_1.3.1     tidyr_1.1.0     tibble_3.0.3    ggplot2_3.3.2  
+    ##  [9] tidyverse_1.3.0 broom_0.7.0    
     ## 
     ## loaded via a namespace (and not attached):
-    ##  [1] tidyselect_1.1.0 xfun_0.14        haven_2.3.1      lattice_0.20-41 
-    ##  [5] colorspace_1.4-1 vctrs_0.3.1      generics_0.0.2   htmltools_0.4.0 
-    ##  [9] yaml_2.2.1       utf8_1.1.4       blob_1.2.1       rlang_0.4.6     
-    ## [13] pillar_1.4.4     glue_1.4.1       withr_2.2.0      DBI_1.1.0       
-    ## [17] dbplyr_1.4.4     modelr_0.1.8     readxl_1.3.1     lifecycle_0.2.0 
-    ## [21] munsell_0.5.0    gtable_0.3.0     cellranger_1.1.0 rvest_0.3.5     
-    ## [25] evaluate_0.14    labeling_0.3     knitr_1.28       fansi_0.4.1     
-    ## [29] Rcpp_1.0.4.6     scales_1.1.1     backports_1.1.8  jsonlite_1.7.0  
-    ## [33] farver_2.0.3     fs_1.4.1         hms_0.5.3        digest_0.6.25   
-    ## [37] stringi_1.4.6    grid_3.6.0       cli_2.0.2        tools_3.6.0     
-    ## [41] magrittr_1.5     crayon_1.3.4     pkgconfig_2.0.3  ellipsis_0.3.1  
-    ## [45] xml2_1.3.2       reprex_0.3.0     lubridate_1.7.9  assertthat_0.2.1
-    ## [49] rmarkdown_2.2    httr_1.4.1       rstudioapi_0.11  R6_2.4.1        
-    ## [53] nlme_3.1-148     compiler_3.6.0
+    ##  [1] tidyselect_1.1.0 xfun_0.15        haven_2.3.1      colorspace_1.4-1
+    ##  [5] vctrs_0.3.2      generics_0.0.2   htmltools_0.5.0  yaml_2.2.1      
+    ##  [9] utf8_1.1.4       blob_1.2.1       rlang_0.4.7      pillar_1.4.6    
+    ## [13] glue_1.4.1       withr_2.2.0      DBI_1.1.0        dbplyr_1.4.4    
+    ## [17] modelr_0.1.8     readxl_1.3.1     lifecycle_0.2.0  munsell_0.5.0   
+    ## [21] gtable_0.3.0     cellranger_1.1.0 rvest_0.3.5      evaluate_0.14   
+    ## [25] labeling_0.3     knitr_1.29       fansi_0.4.1      Rcpp_1.0.5      
+    ## [29] scales_1.1.1     backports_1.1.8  jsonlite_1.7.0   farver_2.0.3    
+    ## [33] fs_1.4.2         hms_0.5.3        digest_0.6.25    stringi_1.4.6   
+    ## [37] grid_4.0.2       cli_2.0.2        tools_4.0.2      magrittr_1.5    
+    ## [41] crayon_1.3.4     pkgconfig_2.0.3  ellipsis_0.3.1   xml2_1.3.2      
+    ## [45] reprex_0.3.0     lubridate_1.7.9  assertthat_0.2.1 rmarkdown_2.3   
+    ## [49] httr_1.4.1       rstudioapi_0.11  R6_2.4.1         compiler_4.0.2

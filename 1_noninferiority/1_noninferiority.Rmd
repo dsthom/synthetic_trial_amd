@@ -47,7 +47,7 @@ z <- map(
 )
 
 # name each element of list
-names(z) <- c('nc', 'iptw', 'em', 'psm')
+names(z) <- c('uc', 'iptw', 'em', 'psm')
 ```
 
 
@@ -94,7 +94,7 @@ z <- map(
 
 ```{r}
 # extract each elelment of list as tbl
-nc <- z %>% pluck("nc")
+uc <- z %>% pluck("uc")
 
 iptw <- z %>% pluck("iptw")
   
@@ -110,7 +110,7 @@ psm <- z %>% pluck("psm")
 z.tbl <- z %>% 
   bind_rows(.id = "cohort") %>% 
   mutate(ipw = if_else(
-    cohort %in% c("em", "nc", "psm"),
+    cohort %in% c("em", "uc", "psm"),
     1,
     ipw
   ))
@@ -141,18 +141,18 @@ z.tbl %>%
   summarise(mean_exit_va = round(mean(study_exit_va), 1))
 ```
 
-# nc
+# uc
 
 ```{r}
 # fit lm
-nc.lm <- lm(
+uc.lm <- lm(
   va_change ~ 1 + treatment,
-  data = nc
+  data = uc
 ) %>% 
   broom::tidy(conf.int = TRUE) %>% 
-  mutate(method = "NC")
+  mutate(method = "UC")
 
-nc.lm
+uc.lm
 ```
 # iptw
 
@@ -202,7 +202,7 @@ psm.lm
 ```{r}
 # extract estimates from .lm onjects
 ni.lm <- bind_rows(
-  nc.lm,
+  uc.lm,
   iptw.lm,
   em.lm,
   psm.lm
@@ -243,7 +243,7 @@ ni.lm <- ni.lm %>%
       str_trim(hi95_lab), 
       ")")
   ) %>% 
-  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "NC")))
+  mutate(method = factor(method, levels = c("PSM", "EM", "IPTW", "UC")))
 ```
 
 
