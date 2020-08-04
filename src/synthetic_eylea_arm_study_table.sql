@@ -76,13 +76,14 @@ ALTER TABLE amd_synthetic_eylea_arm_study_table
   -- emulated-trial elligibility
   
   ADD COLUMN previous_vegf_excl INT(1) DEFAULT 0,
-  ADD COLUMN switch_excl INT(1) DEFAULT 0,
   ADD COLUMN incomplete_loading_excl INT(1) DEFAULT 0,
   ADD COLUMN missing_covariates_excl INT(1) DEFAULT 0,
-  ADD COLUMN no_follow_reads_excl INT(1) DEFAULT 0,
   ADD COLUMN incomplete_followup_excl INT(1) DEFAULT 0,
+  ADD COLUMN eligibility INT(1) DEFAULT 0,
   
-  ADD COLUMN eligibility INT(1) DEFAULT 0;
+ -- per protocol
+  ADD COLUMN switch_per_protocol INT(1) DEFAULT 0,
+  ADD COLUMN no_follow_reads_per_protocol INT(1) DEFAULT 0;
 
 /*
 patient_eye
@@ -660,15 +661,6 @@ SET previous_vegf_excl = 1
         lucentis_start_date <= baseline_eylea_date;
 
 /*
--- switch_excl
-*/
-
-UPDATE amd_synthetic_eylea_arm_study_table
-SET switch_excl = 1 
-  WHERE avastin_start_date >= baseline_eylea_date AND avastin_start_date < study_exit OR
-        lucentis_start_date >= baseline_eylea_date AND lucentis_start_date < study_exit;
-
-/*
 -- incomplete_loading_excl
 */
 
@@ -685,14 +677,6 @@ SET missing_covariates_excl = 1
 WHERE gender IS NULL OR
       baseline_va IS NULL OR
       age_at_baseline IS NULL;
-
-/*
--- no_follow_reads_excl
-*/
-
-UPDATE amd_synthetic_eylea_arm_study_table
-SET no_follow_reads_excl = 1
-WHERE n_va_reads = 0;
 
 /*
 -- incomplete_followup_excl
@@ -722,11 +706,28 @@ WHERE fellow_excl = 0 AND
       infection_excl = 0 AND
       intraocular_surg_excl = 0 AND
       previous_vegf_excl = 0 AND
-      switch_excl = 0 AND
       incomplete_loading_excl = 0 AND
       missing_covariates_excl = 0 AND
-      no_follow_reads_excl = 0 AND
       incomplete_followup_excl = 0;
+
+-- per protocol
+
+/*
+-- no_follow_reads_per_protocol
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table
+SET no_follow_reads_per_protocol = 1
+WHERE n_va_reads = 0;
+
+/*
+-- switch_per_protocol
+*/
+
+UPDATE amd_synthetic_eylea_arm_study_table
+SET switch_per_protocol = 1 
+  WHERE avastin_start_date >= baseline_eylea_date AND avastin_start_date < study_exit OR
+        lucentis_start_date >= baseline_eylea_date AND lucentis_start_date < study_exit;
 
 /*
 SCRIPT END
