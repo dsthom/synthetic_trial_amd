@@ -1,5 +1,9 @@
 # Script to fit propensity score model, which will be sourced for iptw and psm
 
+# load dependencies
+library(broom)
+library(tidyverse)
+
 # read data locally 
 
 abc.all <- read_csv("../data/abc_patient_details.csv",
