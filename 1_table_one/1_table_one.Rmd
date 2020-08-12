@@ -71,13 +71,16 @@ assign_ps <- function(
    newdata = tbl,
    type.predict = "response") %>% 
     rename(
-      ps = .fitted,
-      ps_se = .se.fit
+      ps = .fitted
     )
   
-  # calculate ipw for iptw cohhort, else weight = 1
+  # calculate ipw for iptw cohort, else weight = 1
   output <- output %>% 
-    mutate(weight = if_else(cohort == "iptw", 1 / ps, 1))
+    mutate(weight = if_else(
+      cohort == "iptw", 
+      case_when(treatment == "avastin" ~ 1 / ps,
+                treatment == "eylea" ~ 1 / (1 - ps)),
+      1))
   
   output
   }
