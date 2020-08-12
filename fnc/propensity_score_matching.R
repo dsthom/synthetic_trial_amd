@@ -11,7 +11,7 @@ propensity_score_matching <- function(
   set.seed(1337)
   
   # source propensity model
-  source("src/propensity_model.R")
+  source("../src/propensity_model.R")
   
   # predict Pr of treatment(Avastin == 1) for trial arm
   trial.psm <- augment(
@@ -19,10 +19,9 @@ propensity_score_matching <- function(
     newdata = trial_arm,
     type.predict = "response") %>% 
     
-    # rename .fitted and .se.fit
+    # rename .fitted
     rename(
-      propensity_score = .fitted,
-      propensity_score_se = .se.fit
+      propensity_score = .fitted
     )
   
   # predict Pr of treatment(Avastin == 1) for synthetic arm
@@ -31,10 +30,9 @@ propensity_score_matching <- function(
     newdata = synthetic_arm,
     type.predict = "response") %>% 
     
-    # rename .fitted and .se.fit
+    # rename .fitted
     rename(
-      propensity_score = .fitted,
-      propensity_score_se = .se.fit
+      propensity_score = .fitted
     )
   
   # ps_trimming
