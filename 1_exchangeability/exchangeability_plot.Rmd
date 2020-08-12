@@ -1,0 +1,182 @@
+---
+title: "exchangeability_plot"
+author: "Darren S Thomas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes
+output: github_document
+---
+
+```{r setup, include=FALSE}
+# configure Rmd chunks
+knitr::opts_chunk$set(
+    echo = TRUE,      # output code chunks
+    message = FALSE,  # toggle off message output 
+    warning = FALSE)  # toggle off warning output
+
+# load frequently used packages
+library(broom)
+library(tidyverse)
+
+# set default ggplot theme
+courier_bw <- theme_bw() +
+  theme(text = element_text(family = "Courier"),
+        legend.position = "bottom",
+        strip.background = element_rect(
+          colour = "black", 
+          fill = "white",
+          size = 0.5))
+
+theme_set(courier_bw)
+```
+
+```{r}
+# create list of filenames to read from
+y <- list(
+  "../data/cohort_nc.csv",
+  "../data/cohort_iptw.csv",
+  "../data/cohort_em.csv",
+  "../data/cohort_psm.csv"
+)
+
+# read cohorts from .csv
+z <- map(
+  .x = y,
+  ~ read_csv(
+    file = .x,
+    col_types = cols(
+      treatment = col_factor(levels = c('eylea', 'avastin'))
+    ))
+)
+
+# name each element of list
+names(z) <- c('nc', 'iptw', 'em', 'psm')
+```
+
+```{r}
+# merge to a single tbl
+zz <- bind_rows(z, .id = "cohort") %>% 
+  # 
+  select(cohort:baseline_etdrs)
+```
+
+```{r}
+# create assign_ps fnc
+assign_ps <- function(
+  tbl
+){
+
+  # source propensity model
+  source("../src/propensity_model.R")
+
+  # predict Pr of treatment(Avastin == 1)
+  output <- augment(
+   x = propensity_model,
+   newdata = tbl,
+   type.predict = "response") %>% 
+    rename(
+      ps = .fitted,
+      ps_se = .se.fit
+    )
+  
+  # calculate ipw for iptw cohhort, else weight = 1
+  output <- output %>% 
+    mutate(weight = if_else(cohort == "iptw", 1 / ps, 1))
+  
+  output
+  }
+  
+```
+
+```{r}
+# score Pr
+exc <- assign_ps(tbl = zz)
+```
+
+```{r}
+exc %>% 
+  ggplot(aes(x = ps, colour = treatment, weight = weight)) +
+  facet_wrap(~ cohort) +
+  geom_density()
+```
+
+# add auc
+
+```{r}
+# calculate auc for each method
+auc <- exc %>% 
+  group_by(cohort) %>% 
+  yardstick::roc_auc(
+    ps,
+    truth = treatment
+  )
+```
+
+```{r}
+# calculate weighted auc
+
+w.roc <- WeightedROC::WeightedROC(
+    guess = exc$ps[exc$cohort == "iptw"], 
+    label = exc$treatment[exc$cohort == "iptw"],
+    weight = exc$weight[exc$cohort == "iptw"])
+
+WeightedROC::WeightedAUC(w.roc)
+
+```
+
+```{r}
+# replace unweighted auc with weighted auc
+
+w.auc <- tribble(
+  ~ cohort, ~ .estimate,
+  "iptw", WeightedROC::WeightedAUC(w.roc)
+)
+
+auc <- auc %>% 
+  filter(cohort != "iptw") %>% 
+  bind_rows(w.auc)
+
+```
+
+```{r}
+exc %>% 
+  mutate(cohort = factor(
+    cohort, 
+    levels = c("nc", "iptw", "em", "psm"))) %>% 
+  ggplot(aes(x = ps)) +
+  facet_grid(
+    cohort ~.,
+    labeller = labeller(cohort = c(
+      "nc" = "NC",
+      "iptw" = "IPTW", 
+      "em" = "EM", 
+      "psm" = "PSM"))) +
+  geom_density(aes(colour = treatment, weight = weight)) +
+  geom_text(
+    data = auc, 
+    aes(
+      x = 0.8, 
+      y = 4, 
+      label = paste("AUC", format(round(.estimate, 3), nsmall = 3))),
+    family = "Courier") +
+  labs(
+    x = "Propensity score",
+    y = "Density"
+  )
+```
+
+'Inferences about treatment effect made using propensity-score matching are valid only if, in the matched sample, treated and untreated subjects have similar distributions of measured baseline covariates.'
+
+# legend to generic names, remove legend title.
+# facet order acting up
+# second graph is standardised mean differences in age, sex (or categorical equiavlent), baseline_read see (PMC3472075), or add them to table 1. https://handbook-5-1.cochrane.org/chapter_9/9_2_3_2_the_standardized_mean_difference.html
+
+```{r}
+exc %>% 
+  ggplot(aes(x = treatment, y = ps, weight = weight, colour = treatment)) +
+  facet_wrap(~ cohort) +
+  geom_violin() +
+  geom_boxplot(width = 0.15)
+  
+
+```
+
