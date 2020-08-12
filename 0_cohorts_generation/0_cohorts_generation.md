@@ -1,43 +1,19 @@
----
-title: "0_cohorts_generation"
-author: "Darren S Thomas"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-always_allow_html: yes
-output: github_document
----
+0\_cohorts\_generation
+================
+Darren S Thomas
+04 August, 2020
 
 Run script once only to generate cohorts in order of:
 
-* read abc avastin arm from .csv and synthetic eylea arm from mysql server
-* assemble cohorts for nc, iptw, em, and psm
-* export cohorts to .csv (for use in outcome regression analysis)
-* export cohorts to mysql server (for use in survival analysis)
-
-```{r setup, include=FALSE}
-# configure Rmd chunks
-knitr::opts_chunk$set(
-    echo = TRUE,      # output code chunks
-    message = FALSE,  # toggle off message output 
-    warning = FALSE)  # toggle off warning output
-
-# load frequently used packages
-library(broom)
-library(tidyverse)
-
-# set default ggplot theme
-courier_bw <- theme_bw() +
-  theme(text = element_text(family = "Courier"),
-        legend.position = "bottom")
-
-theme_set(courier_bw)
-
-# configure connection to mysql
-source("../src/kale_mysql.R")
-```
+  - read abc avastin arm from .csv and synthetic eylea arm from mysql
+    server
+  - assemble cohorts for nc, iptw, em, and psm
+  - export cohorts to .csv (for use in outcome regression analysis)
+  - export cohorts to mysql server (for use in survival analysis)
 
 # read
 
-```{r}
+``` r
 # read trial arm
 abc <- read_csv("../data/abc_patient_details.csv",
                 col_types = cols(
@@ -65,7 +41,7 @@ abc <- read_csv("../data/abc_patient_details.csv",
   filter(treatment == "avastin")
 ```
 
-```{sql connection = kale, output.var = "ehr"}
+``` sql
 -- output.var = "ehr"
 SELECT patient_eye AS id,
 treatment,
@@ -79,21 +55,21 @@ FROM amd_synthetic_eylea_arm_study_table
 WHERE eligibility = 1;
 ```
 
-```{r}
+``` r
 # convert to tibble
 ehr <- as.tibble(ehr)
 ```
 
 # assemble
 
-```{r}
+``` r
 # source fncs
 source("../fnc/inverse_probability_treatment.R")
 source("../fnc/exact_matching.R")
 source("../fnc/propensity_score_matching.R") 
 ```
 
-```{r}
+``` r
 # generate cohorts
 ## nc
 nc <- bind_rows(abc, ehr)
@@ -117,9 +93,9 @@ psm <- propensity_score_matching(
   ps_trimming = TRUE)
 ```
 
-# export_to_csv
+# export\_to\_csv
 
-```{r}
+``` r
 # create list of objects to be exported
 x <- list(
   nc,
@@ -144,12 +120,11 @@ purrr::walk2(
     path = .y
   )
 )
-
 ```
 
-# export_to_mysql
+# export\_to\_mysql
 
-```{r}
+``` r
 # create function to export cohort ids to kale (kale must be configured)
 longform_to_kale <- function(
   .x,
