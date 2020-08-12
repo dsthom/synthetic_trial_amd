@@ -297,7 +297,7 @@ ggsave(
   device = "tiff",
   path = "../figs",
   width = 86,
-  height = 100,
+  height = 86,
   units = "mm",
   dpi = 300
 )

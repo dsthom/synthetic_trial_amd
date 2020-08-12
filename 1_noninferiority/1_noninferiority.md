@@ -1,7 +1,7 @@
 noninferiority
 ================
 Darren S Thomas
-20 July, 2020
+05 August, 2020
 
 # read\_data
 
@@ -128,13 +128,13 @@ z.tbl %>%
     ## # Groups:   cohort [4]
     ##   cohort treatment mean_exit_va
     ##   <chr>  <fct>            <dbl>
-    ## 1 em     eylea             50.5
+    ## 1 em     eylea             50.9
     ## 2 em     avastin           56.1
-    ## 3 iptw   eylea             55.7
+    ## 3 iptw   eylea             56  
     ## 4 iptw   avastin           58  
     ## 5 psm    eylea             60.4
     ## 6 psm    avastin           58  
-    ## 7 uc     eylea             55.9
+    ## 7 uc     eylea             55.8
     ## 8 uc     avastin           58
 
 # uc
@@ -154,8 +154,8 @@ uc.lm
     ## # A tibble: 2 x 8
     ##   term           estimate std.error statistic  p.value conf.low conf.high method
     ##   <chr>             <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl> <chr> 
-    ## 1 (Intercept)        3.80     0.231     16.4  7.81e-59    3.34       4.25 UC    
-    ## 2 treatmentavas…     3.24     1.91       1.70 9.01e- 2   -0.506      6.98 UC
+    ## 1 (Intercept)        3.71     0.226     16.4  8.95e-59    3.26       4.15 UC    
+    ## 2 treatmentavas…     3.32     1.89       1.76 7.82e- 2   -0.376      7.03 UC
 
 # iptw
 
@@ -175,8 +175,8 @@ iptw.lm
     ## # A tibble: 2 x 8
     ##   term           estimate std.error statistic  p.value conf.low conf.high method
     ##   <chr>             <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl> <chr> 
-    ## 1 (Intercept)        3.39     0.237     14.3  2.47e-45    2.92       3.85 IPTW  
-    ## 2 treatmentavas…     3.26     1.93       1.68 9.22e- 2   -0.534      7.05 IPTW
+    ## 1 (Intercept)        3.84     0.232     16.6  6.41e-60    3.39       4.30 IPTW  
+    ## 2 treatmentavas…     2.80     1.88       1.49 1.36e- 1   -0.880      6.49 IPTW
 
 # em
 
@@ -195,8 +195,8 @@ em.lm
     ## # A tibble: 2 x 8
     ##   term            estimate std.error statistic p.value conf.low conf.high method
     ##   <chr>              <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl> <chr> 
-    ## 1 (Intercept)        -1.14      2.71    -0.421   0.675    -6.54      4.26 EM    
-    ## 2 treatmentavast…     5.64      3.84     1.47    0.145    -2.00     13.3  EM
+    ## 1 (Intercept)       -0.512      2.64    -0.194   0.847    -5.76      4.73 EM    
+    ## 2 treatmentavast…    5.19       3.73     1.39    0.168    -2.23     12.6  EM
 
 # psm
 
@@ -318,7 +318,7 @@ ggsave(
   device = "tiff",
   path = "../figs",
   width = 86,
-  height = 100,
+  height = 86,
   units = "mm",
   dpi = 300
 )
