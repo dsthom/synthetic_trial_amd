@@ -1,6 +1,6 @@
 # Script to preoprocess and run glm
 
-# Output is list-column workflow with the exponeniated ORs of glm in tidy format
+# Output is list-column workflow with the exponentiated ORs of glm in tidy format
 
 va_glm <- function(
   data,
@@ -21,7 +21,7 @@ va_glm <- function(
       va_change = study_exit_va - baseline_etdrs,
       fifteen_gain = if_else(va_change >= 15, 1, 0),
       ten_gain = if_else(va_change >= 10, 1, 0),
-      fifteen_loss = if_else(va_change > -15, 1, 0)) %>% 
+      fifteen_loss = if_else(va_change <= -15, 1, 0)) %>% 
     # make eylea reference level
     mutate(treatment = factor(treatment,
                               levels = c("eylea", "avastin"))) %>% 
@@ -62,7 +62,7 @@ va_glm <- function(
         exponentiate = TRUE)
     ))
    
-  # repeat model and tidy output, adjsuting for drug_load
+  # repeat model and tidy output, adjusting for drug_load
    data <- data %>% 
      # fit (adjusted) glm to each nested dataframe
      mutate(adj_glm = map(
