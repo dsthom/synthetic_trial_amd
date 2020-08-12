@@ -21,7 +21,7 @@ LEFT JOIN nvAMD_visual_acuity v
 USING(patient_eye)
 WHERE s.eligibility = 1 AND
       CEILING(DATEDIFF(v.EncounterDate, s.baseline_eylea_date) / 7) BETWEEN 0 AND 54 AND
-      v.EncounterDate > s.baseline_eylea_date
+      v.EncounterDate >= s.baseline_eylea_date
 GROUP BY id, v.EncounterDate;
       
 /*
