@@ -8,7 +8,7 @@ inverse_probability_treatment <- function(
   ) {
   
   # source propensity model
-  source("src/propensity_model.R")
+  source("../src/propensity_model.R")
   
   # bind trial & synthetic arms tables
   target.trial <- bind_rows(trial_arm, synthetic_arm)
@@ -19,7 +19,9 @@ inverse_probability_treatment <- function(
                   type.predict = "response") %>% 
     
     # calculate inverse probability of treatment weights
-    mutate(ipw = 1 / .fitted)
+    mutate(ipw = case_when(
+      treatment == "avastin" ~ 1 / .fitted,
+      treatment == "eylea" ~ 1 / (1 - .fitted)))
   
   if(ps_trimming == TRUE){
     output <- output %>% 
