@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # load frequently used packages
 library(patchwork)
 library(survival)
+library(survminer)
 library(tidyverse)
 
 # set default ggplot theme
@@ -86,7 +87,7 @@ psm <- mutate(psm, weights = 1)
 ```{r}
 # source fncs
 source("../fnc/survival_wrangle.R")   # joins censorship data to cohorts
-source("../fnc/survival_km.R")        # models a survfit ovbject
+source("../fnc/survival_km.R")        # models a survfit object
 source("../fnc/ggsurvplot_courier.R") # plots kaplan-meiers
 ```
 
@@ -111,9 +112,9 @@ nc.cens <- map2(
 )
 
 names(nc.cens) <- list(
-    '>=15',
-    '>=10',
-    '<=-15')
+    '>= 15',
+    '>= 10',
+    '<= -15')
 ```
 
 ```{r}
@@ -129,16 +130,19 @@ nc.kms <- map(
 ```
 
 ```{r}
-#
+# 
 
-nc.plots <- map2(
-  .x = nc.kms,
-  .y = nc.cens,
+nc.plots <- pmap(
+  list(
+    nc.kms,
+    nc.cens,
+    names(nc.kms)),
   ~ ggsurvplot_courier(
-    fit = .x,
-    data = .y
+      fit = ..1,
+      data = ..2,
+      title = str_c("UC ", ..3)
+    )
   )
-)
 ```
 
 # iptw
@@ -162,9 +166,9 @@ iptw.cens <- map2(
 )
 
 names(iptw.cens) <- list(
-    '>=15',
-    '>=10',
-    '<=-15')
+    '>= 15',
+    '>= 10',
+    '<= -15')
 ```
 
 ```{r}
@@ -182,14 +186,17 @@ iptw.kms <- map(
 ```{r}
 #
 
-iptw.plots <- map2(
-  .x = iptw.kms,
-  .y = iptw.cens,
+iptw.plots <- pmap(
+  list(
+    iptw.kms,
+    iptw.cens,
+    names(iptw.kms)),
   ~ ggsurvplot_courier(
-    fit = .x,
-    data = .y
+      fit = ..1,
+      data = ..2,
+      title = str_c("IPTW ", ..3)
+    )
   )
-)
 ```
 
 # em
@@ -213,9 +220,9 @@ em.cens <- map2(
 )
 
 names(em.cens) <- list(
-    '>=15',
-    '>=10',
-    '<=-15')
+    '>= 15',
+    '>= 10',
+    '<= -15')
 ```
 
 ```{r}
@@ -233,14 +240,17 @@ em.kms <- map(
 ```{r}
 #
 
-em.plots <- map2(
-  .x = em.kms,
-  .y = em.cens,
+em.plots <- pmap(
+  list(
+    em.kms,
+    em.cens,
+    names(em.kms)),
   ~ ggsurvplot_courier(
-    fit = .x,
-    data = .y
+      fit = ..1,
+      data = ..2,
+      title = str_c("EM ", ..3)
+    )
   )
-)
 ```
 
 # psm
@@ -264,9 +274,9 @@ psm.cens <- map2(
 )
 
 names(psm.cens) <- list(
-    '>=15',
-    '>=10',
-    '<=-15')
+    '>= 15',
+    '>= 10',
+    '<= -15')
 ```
 
 ```{r}
@@ -284,17 +294,22 @@ psm.kms <- map(
 ```{r}
 #
 
-psm.plots <- map2(
-  .x = psm.kms,
-  .y = psm.cens,
+psm.plots <- pmap(
+  list(
+    psm.kms,
+    psm.cens,
+    names(psm.kms)),
   ~ ggsurvplot_courier(
-    fit = .x,
-    data = .y
+      fit = ..1,
+      data = ..2,
+      title = str_c("PSM ", ..3)
+    )
   )
-)
 ```
 
-# combine
+# combine plots
+
+Using `survminer::arrange()` would be the obvious choice, but this way does not allow for a common legend:
 
 ```{r}
 plots <- c(
@@ -303,33 +318,50 @@ plots <- c(
   em.plots,
   psm.plots
 )
-```
 
-```{r}
-# wrap individual elements
-arrange_ggsurvplots(
-  plots, 
-  print = TRUE,
-  ncol = 4,
-  nrow = 3)
-```
-
-```{r}
-# save as object
-a <- arrange_ggsurvplots(
+arrange_ggsurvplots( 
   plots, 
   print = TRUE,
   ncol = 4,
   nrow = 3)
 
+```
+Thus, a slight convoluted approach is taking using pathwork, which requires the $plot obejct to be extracted from each ggsurvplot object.
+
+```{r}
+# extract plot from each ggsurvplot
+
+nc.a <- nc.plots[[">= 15"]][["plot"]]
+nc.b <- nc.plots[[">= 10"]][["plot"]]
+nc.c <- nc.plots[["<= -15"]][["plot"]]
+
+iptw.a <- iptw.plots[[">= 15"]][["plot"]]
+iptw.b <- iptw.plots[[">= 10"]][["plot"]]
+iptw.c <- iptw.plots[["<= -15"]][["plot"]]
+
+em.a <- em.plots[[">= 15"]][["plot"]]
+em.b <- em.plots[[">= 10"]][["plot"]]
+em.c <- em.plots[["<= -15"]][["plot"]]
+
+psm.a <- psm.plots[[">= 15"]][["plot"]]
+psm.b <- psm.plots[[">= 10"]][["plot"]]
+psm.c <- psm.plots[["<= -15"]][["plot"]]
+```
+
+```{r}
+(nc.a + iptw.a + em.a + psm.a + nc.b + iptw.b + em.b + psm.b + nc.c + iptw.c + em.c + psm.c)  +
+  plot_layout(guides = "collect")
+```
+
+```{r}
 # export as .tiff
 ggsave(
   filename = "fig_4.tiff",
-  plot = a,
+  plot = last_plot(),
   device = "tiff",
   path = "../figs",
-  width = 134,
-  height = 100,
+  width = 178,
+  height = 120,
   units = "mm",
   dpi = 300
 )
