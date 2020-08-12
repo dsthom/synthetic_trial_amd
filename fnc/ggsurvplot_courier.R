@@ -1,9 +1,9 @@
 # wrapper for survminer::ggsurvplot
 
 ggsurvplot_courier <- function(
-  fit, # survfit object
-  data, # data used to model survfit object
-  titles
+  fit,   # survfit object
+  data,  # data used to model survfit object
+  title = NULL
 ){
   
   # load dependencies
@@ -23,13 +23,17 @@ ggsurvplot_courier <- function(
     fit = fit,
     data = data,
     fun = 'pct',
+    palette = c("#0C7BDC", "#FFC20A"),
+    
     # confidence intervals
     conf.int = TRUE,
     conf.int.style = 'ribbon',
     conf.int.alpha = 0.25,
+    
     # censoring
     censor.shape = '|', 
     censor.size = 1,
+    
     # axes
     break.time.by = 12,
     xlim = c(0, 54),
@@ -38,16 +42,22 @@ ggsurvplot_courier <- function(
     ylab = '% Pr(y = 0)',
     
     # legend
-    legend = 'none',
+    legend = 'bottom',
+    legend.title = "",
+    legend.labs = c("Aflibercept", "Bevacizumab"),
     
     # annotations
     pval = TRUE,
     pval.size = 3,
-    pval.coord = c(6, 99),
+    pval.coord = c(26, 96),
     
     # aesthetic
     ggtheme = courier_bw,
-    font.family = 'Courier'
+    font.family = 'Courier',
+    
+    # title
+    
+    title = title
   )
   
 }
