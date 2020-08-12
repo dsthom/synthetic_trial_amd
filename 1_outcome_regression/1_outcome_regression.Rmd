@@ -238,7 +238,7 @@ sup <- bind_rows(
   mutate(outcome = case_when(
     outcome == "fifteen_gain" ~ "≥ 15 letters",
     outcome == "ten_gain" ~ "≥ 10 letters",
-    outcome == "fifteen_loss" ~ "> -15 letters"
+    outcome == "fifteen_loss" ~ "≤ -15 letters"
   ))
 ```
 
@@ -282,7 +282,7 @@ sup %>%
   filter(term != "(Intercept)") %>% 
   mutate(
     method = factor(method, levels = c("PSM", "EM", "IPTW", "UC")),
-    outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '> -15 letters'))) %>% 
+    outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '≤ -15 letters'))) %>% 
 ggplot(aes(x = or, y = method)) +
   facet_grid(.~outcome) +
   # log scale

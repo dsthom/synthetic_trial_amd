@@ -1,7 +1,7 @@
 outcome\_regression
 ================
 Darren S Thomas
-20 July, 2020
+04 August, 2020
 
 # read\_data
 
@@ -61,8 +61,8 @@ uc[[6]][[1]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic   p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)         0.318    0.0354    -32.4  6.11e-230    0.297     0.341
-    ## 2 treatmentavastin    1.50     0.268       1.51 1.30e-  1    0.871     2.50
+    ## 1 (Intercept)         0.308    0.0352    -33.4  2.51e-244    0.288     0.330
+    ## 2 treatmentavastin    1.55     0.268       1.63 1.03e-  1    0.899     2.58
 
 ``` r
 # ≥ 10 letetrs 
@@ -72,8 +72,8 @@ uc[[6]][[2]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic  p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)         0.585    0.0314    -17.1  1.30e-65    0.550     0.622
-    ## 2 treatmentavastin    1.47     0.251       1.52 1.27e- 1    0.892     2.39
+    ## 1 (Intercept)         0.563    0.0312    -18.4  8.23e-76    0.530     0.599
+    ## 2 treatmentavastin    1.52     0.251       1.67 9.41e- 2    0.926     2.49
 
 ``` r
 # > -15 letters
@@ -83,8 +83,8 @@ uc[[6]][[3]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)          8.21    0.0486    43.3     0        7.47       9.04
-    ## 2 treatmentavastin     1.20    0.431      0.418   0.676    0.558      3.12
+    ## 1 (Intercept)         0.119    0.0486   -43.9     0        0.108     0.130
+    ## 2 treatmentavastin    0.858    0.431     -0.356   0.722    0.329     1.84
 
 ``` r
 # extract .glm output
@@ -103,12 +103,12 @@ uc.glm
     ## # Groups:   outcome [3]
     ##   outcome term  estimate std.error statistic   p.value conf.low conf.high method
     ##   <chr>   <chr>    <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl> <chr> 
-    ## 1 fiftee… (Int…    0.318    0.0354   -32.4   6.11e-230    0.297     0.341 UC    
-    ## 2 fiftee… trea…    1.50     0.268      1.51  1.30e-  1    0.871     2.50  UC    
-    ## 3 ten_ga… (Int…    0.585    0.0314   -17.1   1.30e- 65    0.550     0.622 UC    
-    ## 4 ten_ga… trea…    1.47     0.251      1.52  1.27e-  1    0.892     2.39  UC    
-    ## 5 fiftee… (Int…    8.21     0.0486    43.3   0.           7.47      9.04  UC    
-    ## 6 fiftee… trea…    1.20     0.431      0.418 6.76e-  1    0.558     3.12  UC
+    ## 1 fiftee… (Int…    0.308    0.0352   -33.4   2.51e-244    0.288     0.330 UC    
+    ## 2 fiftee… trea…    1.55     0.268      1.63  1.03e-  1    0.899     2.58  UC    
+    ## 3 ten_ga… (Int…    0.563    0.0312   -18.4   8.23e- 76    0.530     0.599 UC    
+    ## 4 ten_ga… trea…    1.52     0.251      1.67  9.41e-  2    0.926     2.49  UC    
+    ## 5 fiftee… (Int…    0.119    0.0486   -43.9   0.           0.108     0.130 UC    
+    ## 6 fiftee… trea…    0.858    0.431     -0.356 7.22e-  1    0.329     1.84  UC
 
 # iptw
 
@@ -125,8 +125,8 @@ iptw[[6]][[1]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)         0.304    0.0255    -46.7   0         0.289     0.319
-    ## 2 treatmentavastin    1.41     0.192       1.78  0.0755    0.956     2.03
+    ## 1 (Intercept)         0.321    0.0253    -45.0    0        0.305     0.337
+    ## 2 treatmentavastin    1.33     0.192       1.49   0.136    0.905     1.93
 
 ``` r
 # ≥ 10 letetrs 
@@ -136,8 +136,8 @@ iptw[[6]][[2]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic   p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)         0.561    0.0225    -25.8  3.14e-146    0.537     0.586
-    ## 2 treatmentavastin    1.45     0.177       2.10 3.53e-  2    1.02      2.05
+    ## 1 (Intercept)         0.583    0.0225    -24.0  2.11e-127    0.558     0.609
+    ## 2 treatmentavastin    1.40     0.177       1.89 5.93e-  2    0.984     1.97
 
 ``` r
 # > -15 letters
@@ -147,8 +147,8 @@ iptw[[6]][[3]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)          7.90    0.0341    60.6     0        7.40       8.45
-    ## 2 treatmentavastin     1.21    0.300      0.631   0.528    0.699      2.29
+    ## 1 (Intercept)         0.116    0.0355   -60.6     0        0.108     0.124
+    ## 2 treatmentavastin    0.902    0.300     -0.345   0.730    0.476     1.56
 
 ``` r
 # extract .glm output
@@ -167,12 +167,12 @@ iptw.glm
     ## # Groups:   outcome [3]
     ##   outcome term  estimate std.error statistic   p.value conf.low conf.high method
     ##   <chr>   <chr>    <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl> <chr> 
-    ## 1 fiftee… (Int…    0.304    0.0255   -46.7   0.           0.289     0.319 IPTW  
-    ## 2 fiftee… trea…    1.41     0.192      1.78  7.55e-  2    0.956     2.03  IPTW  
-    ## 3 ten_ga… (Int…    0.561    0.0225   -25.8   3.14e-146    0.537     0.586 IPTW  
-    ## 4 ten_ga… trea…    1.45     0.177      2.10  3.53e-  2    1.02      2.05  IPTW  
-    ## 5 fiftee… (Int…    7.90     0.0341    60.6   0.           7.40      8.45  IPTW  
-    ## 6 fiftee… trea…    1.21     0.300      0.631 5.28e-  1    0.699     2.29  IPTW
+    ## 1 fiftee… (Int…    0.321    0.0253   -45.0   0.           0.305     0.337 IPTW  
+    ## 2 fiftee… trea…    1.33     0.192      1.49  1.36e-  1    0.905     1.93  IPTW  
+    ## 3 ten_ga… (Int…    0.583    0.0225   -24.0   2.11e-127    0.558     0.609 IPTW  
+    ## 4 ten_ga… trea…    1.40     0.177      1.89  5.93e-  2    0.984     1.97  IPTW  
+    ## 5 fiftee… (Int…    0.116    0.0355   -60.6   0.           0.108     0.124 IPTW  
+    ## 6 fiftee… trea…    0.902    0.300     -0.345 7.30e-  1    0.476     1.56  IPTW
 
 # em
 
@@ -189,10 +189,10 @@ em[[6]][[1]]
 ```
 
     ## # A tibble: 2 x 7
-    ##   term             estimate std.error statistic  p.value conf.low conf.high
-    ##   <chr>               <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)          0.20     0.414     -3.89 0.000101   0.0814     0.423
-    ## 2 treatmentavastin     2.24     0.532      1.52 0.129      0.808      6.66
+    ##   term             estimate std.error statistic   p.value conf.low conf.high
+    ##   <chr>               <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl>
+    ## 1 (Intercept)         0.194     0.413     -3.96 0.0000736   0.0793     0.411
+    ## 2 treatmentavastin    2.23      0.530      1.51 0.131       0.807      6.60
 
 ``` r
 # ≥ 10 letetrs 
@@ -202,8 +202,8 @@ em[[6]][[2]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)          0.5      0.327    -2.12   0.0342    0.256     0.933
-    ## 2 treatmentavastin     1.36     0.454     0.678  0.498     0.560     3.35
+    ## 1 (Intercept)         0.483     0.325    -2.24   0.0252    0.248     0.897
+    ## 2 treatmentavastin    1.49      0.449     0.891  0.373     0.621     3.64
 
 ``` r
 # > -15 letters
@@ -213,8 +213,8 @@ em[[6]][[3]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic  p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)          3.67     0.376     3.46  0.000550    1.83       8.15
-    ## 2 treatmentavastin     1.64     0.580     0.850 0.395       0.532      5.35
+    ## 1 (Intercept)         0.229     0.392    -3.77  0.000166   0.0985     0.468
+    ## 2 treatmentavastin    0.709     0.589    -0.582 0.560      0.214      2.24
 
 ``` r
 # extract .glm output
@@ -233,12 +233,12 @@ em.glm
     ## # Groups:   outcome [3]
     ##   outcome  term   estimate std.error statistic p.value conf.low conf.high method
     ##   <chr>    <chr>     <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl> <chr> 
-    ## 1 fifteen… (Inte…     0.20     0.414    -3.89  1.01e-4   0.0814     0.423 EM    
-    ## 2 fifteen… treat…     2.24     0.532     1.52  1.29e-1   0.808      6.66  EM    
-    ## 3 ten_gain (Inte…     0.5      0.327    -2.12  3.42e-2   0.256      0.933 EM    
-    ## 4 ten_gain treat…     1.36     0.454     0.678 4.98e-1   0.560      3.35  EM    
-    ## 5 fifteen… (Inte…     3.67     0.376     3.46  5.50e-4   1.83       8.15  EM    
-    ## 6 fifteen… treat…     1.64     0.580     0.850 3.95e-1   0.532      5.35  EM
+    ## 1 fifteen… (Inte…    0.194     0.413    -3.96  7.36e-5   0.0793     0.411 EM    
+    ## 2 fifteen… treat…    2.23      0.530     1.51  1.31e-1   0.807      6.60  EM    
+    ## 3 ten_gain (Inte…    0.483     0.325    -2.24  2.52e-2   0.248      0.897 EM    
+    ## 4 ten_gain treat…    1.49      0.449     0.891 3.73e-1   0.621      3.64  EM    
+    ## 5 fifteen… (Inte…    0.229     0.392    -3.77  1.66e-4   0.0985     0.468 EM    
+    ## 6 fifteen… treat…    0.709     0.589    -0.582 5.60e-1   0.214      2.24  EM
 
 # psm
 
@@ -257,8 +257,8 @@ psm[[6]][[1]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)         0.477     0.265 -2.79e+ 0 0.00529    0.278     0.792
-    ## 2 treatmentavastin    1.00      0.375 -2.22e-15 1.00       0.478     2.09
+    ## 1 (Intercept)         0.413     0.273    -3.24  0.00119    0.236     0.693
+    ## 2 treatmentavastin    1.16      0.380     0.380 0.704      0.548     2.45
 
 ``` r
 # ≥ 10 letters 
@@ -268,8 +268,8 @@ psm[[6]][[2]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)         0.711     0.252    -1.36    0.175    0.430      1.16
-    ## 2 treatmentavastin    1.21      0.354     0.530   0.596    0.603      2.42
+    ## 1 (Intercept)         0.970     0.248    -0.124   0.901    0.594      1.58
+    ## 2 treatmentavastin    0.884     0.351    -0.351   0.725    0.443      1.76
 
 ``` r
 # > -15 letters
@@ -279,8 +279,8 @@ psm[[6]][[3]]
     ## # A tibble: 2 x 7
     ##   term             estimate std.error statistic     p.value conf.low conf.high
     ##   <chr>               <dbl>     <dbl>     <dbl>       <dbl>    <dbl>     <dbl>
-    ## 1 (Intercept)        15.2       0.516     5.28  0.000000130    6.29      50.2 
-    ## 2 treatmentavastin    0.645     0.671    -0.654 0.513          0.158      2.37
+    ## 1 (Intercept)         0.121     0.400    -5.28  0.000000126   0.0502     0.247
+    ## 2 treatmentavastin    0.843     0.586    -0.292 0.770         0.257      2.68
 
 ``` r
 # extract .glm output
@@ -299,12 +299,12 @@ psm.glm
     ## # Groups:   outcome [3]
     ##   outcome  term   estimate std.error statistic p.value conf.low conf.high method
     ##   <chr>    <chr>     <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl> <chr> 
-    ## 1 fifteen… (Inte…    0.477     0.265 -2.79e+ 0 5.29e-3    0.278     0.792 PSM   
-    ## 2 fifteen… treat…    1.00      0.375 -2.22e-15 1.00e+0    0.478     2.09  PSM   
-    ## 3 ten_gain (Inte…    0.711     0.252 -1.36e+ 0 1.75e-1    0.430     1.16  PSM   
-    ## 4 ten_gain treat…    1.21      0.354  5.30e- 1 5.96e-1    0.603     2.42  PSM   
-    ## 5 fifteen… (Inte…   15.2       0.516  5.28e+ 0 1.30e-7    6.29     50.2   PSM   
-    ## 6 fifteen… treat…    0.645     0.671 -6.54e- 1 5.13e-1    0.158     2.37  PSM
+    ## 1 fifteen… (Inte…    0.413     0.273    -3.24  1.19e-3   0.236      0.693 PSM   
+    ## 2 fifteen… treat…    1.16      0.380     0.380 7.04e-1   0.548      2.45  PSM   
+    ## 3 ten_gain (Inte…    0.970     0.248    -0.124 9.01e-1   0.594      1.58  PSM   
+    ## 4 ten_gain treat…    0.884     0.351    -0.351 7.25e-1   0.443      1.76  PSM   
+    ## 5 fifteen… (Inte…    0.121     0.400    -5.28  1.26e-7   0.0502     0.247 PSM   
+    ## 6 fifteen… treat…    0.843     0.586    -0.292 7.70e-1   0.257      2.68  PSM
 
 # forest\_plot
 
@@ -326,7 +326,7 @@ sup <- bind_rows(
   mutate(outcome = case_when(
     outcome == "fifteen_gain" ~ "≥ 15 letters",
     outcome == "ten_gain" ~ "≥ 10 letters",
-    outcome == "fifteen_loss" ~ "> -15 letters"
+    outcome == "fifteen_loss" ~ "≤ -15 letters"
   ))
 ```
 
@@ -366,7 +366,7 @@ sup %>%
   filter(term != "(Intercept)") %>% 
   mutate(
     method = factor(method, levels = c("PSM", "EM", "IPTW", "UC")),
-    outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '> -15 letters'))) %>% 
+    outcome = factor(outcome, levels = c('≥ 15 letters', '≥ 10 letters', '≤ -15 letters'))) %>% 
 ggplot(aes(x = or, y = method)) +
   facet_grid(.~outcome) +
   # log scale
