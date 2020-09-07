@@ -2,8 +2,8 @@
 
 An emulated target trial comparing I) the bevacizumab arm (n 65) of the ABC trial &mdash; a prospective, double-masked, multicentre randomised controlled trial undertaken in the United Kingdom during 2006–08 &mdash; with II) a synthetic arm from 31,151 eyes receiving aflibercept during routine care across 27 sites in England during 2012–18.
 
-![Study design](/figs/fig_1_readme.png)
-**Workflow of emulated target trial estimating causal effects.** L, confounding variables (age, sex, baseline read); A, independent variable (bevacizumab vs. aflibercept); Y, dependent variable (Δ in visual acuity from baseline to week 54); M, mediating variable (number of maintenance injections received during the study period). We hypothesised that age, sex, and ETDRS at baseline read were common causes of both treatment assignment (aflibercept synthetic arm only) and outcome (i.e. were confounders), while the number of maintenance injections received during the study period mediates between A and Y. Thus, blocking the backdoor path L–Y via quasi-randomisation methods, which we assume to naturally arise in the bevacizumab trial arm through randomisation, permits unbiased estimands of the causal pathway A–Y. The backdoor criterion remains open under NC. Abbreviations: EHRs, Electronic Health Records; SOC, Standard Of Care; NC, Negative Control; IPTW, Inverse Probability of Treatment Weighting; EM, Exact Matching; PSM, Propensity Score Matching.
+![Study design](/fig_1_readme.png)
+**Workflow of emulated target trial estimating causal effects.** L, confounding variables (age, sex, baseline read); A, independent variable (bevacizumab vs. aflibercept); Y, dependent variable (Δ in visual acuity from baseline to week 54); M, mediating variable (number of maintenance injections received during the study period). Abbreviations: EHRs, Electronic Health Records; SOC, Standard Of Care; NC, Negative Control; IPTW, Inverse Probability of Treatment Weighting; EM, Exact Matching; PSM, Propensity Score Matching.
 
 # Table of contents
 
