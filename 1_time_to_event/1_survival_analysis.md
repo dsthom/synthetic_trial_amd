@@ -300,6 +300,7 @@ arrange_ggsurvplots(
 ```
 
 ![](1_survival_analysis_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
 Thus, a slight convoluted approach is taking using pathwork, which
 requires the $plot obejct to be extracted from each ggsurvplot object.
 

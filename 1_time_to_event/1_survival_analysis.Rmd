@@ -326,6 +326,7 @@ arrange_ggsurvplots(
   nrow = 3)
 
 ```
+
 Thus, a slight convoluted approach is taking using pathwork, which requires the $plot obejct to be extracted from each ggsurvplot object.
 
 ```{r}
